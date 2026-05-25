@@ -1,11 +1,23 @@
-﻿import { useState } from "react"
+﻿import { useState, useEffect } from "react"
 
 export default function App() {
   const [page, setPage] = useState("home")
   const [selectedShop, setSelectedShop] = useState(null)
   const [selectedProduct, setSelectedProduct] = useState(null)
-  const [cart, setCart] = useState([])
   const [deliveryType, setDeliveryType] = useState("horizon")
+  const [searchQuery, setSearchQuery] = useState("")
+
+  // --- STAGES 4: LOCALSTORAGE PERSISTENCE ---
+  // Pakia data kutoka localStorage kama zipo, vinginevyo weka default
+  const [cart, setCart] = useState(() => {
+    const savedCart = localStorage.getItem("horizon_cart")
+    return savedCart ? JSON.parse(savedCart) : []
+  })
+
+  // --- MFUMO WA SIGN IN (AUTHENTICATION) ---
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [username, setUsername] = useState("")
+  const [password, setPassword] = useState("")
 
   // --- STATE ZA DASHBOARD & ANALYTICS ---
   const [editingProduct, setEditingProduct] = useState(null) 
@@ -13,6 +25,7 @@ export default function App() {
     name: "",
     price: "",
     description: "",
+    image: "", // Stage 2: Picha mpya ya bidhaa
     shop: "Kariakoo Electronics" 
   })
 
@@ -24,7 +37,14 @@ export default function App() {
     "Dar Furniture"
   ])
 
-  // State ya kufuatilia clicks za WhatsApp kwa kila duka ndani ya wiki hii
+  const [shopWhatsAppNumbers] = useState({
+    "Kariakoo Electronics": "255712345678",
+    "Tech Zone": "255787112233",
+    "Mlimani Fashion": "255765443322",
+    "Smart Devices": "255654112233",
+    "Dar Furniture": "255711001122"
+  })
+
   const [whatsappClicks, setWhatsappClicks] = useState({
     "Kariakoo Electronics": 24,
     "Tech Zone": 12,
@@ -33,57 +53,122 @@ export default function App() {
     "Dar Furniture": 0
   })
 
-  const products = [
-    { id: 1, name: "iPhone 15 Pro", price: "Tsh 2,400,000", description: "Latest smartphone." },
-    { id: 2, name: "PS5 Console", price: "Tsh 1,500,000", description: "Gaming console." },
-    { id: 3, name: "Nike Air Max", price: "Tsh 250,000", description: "Stylish sneakers." },
-    { id: 4, name: "Gaming Laptop", price: "Tsh 3,200,000", description: "High performance laptop." }
-  ]
+  // STAGE 2: Data ya bidhaa sasa ina picha (Placeholder images zenye muonekano mzuri)
+  const [shopProducts, setShopProducts] = useState(() => {
+    const savedProducts = localStorage.getItem("horizon_products")
+    return savedProducts ? JSON.parse(savedProducts) : {
+      "Kariakoo Electronics": [
+        { id: 101, name: "iPhone 15 Pro", price: "Tsh 2,400,000", description: "Latest Apple smartphone with premium camera.", image: "https://images.unsplash.com/photo-1695048133142-1a20484d2569?w=500&auto=format&fit=crop&q=60" },
+        { id: 102, name: "Samsung Smart TV", price: "Tsh 1,200,000", description: "4K Smart TV with crystal clear display.", image: "https://images.unsplash.com/photo-1593305841991-05c297ba4575?w=500&auto=format&fit=crop&q=60" }
+      ],
+      "Tech Zone": [
+        { id: 103, name: "Gaming Laptop", price: "Tsh 3,200,000", description: "High performance laptop for gaming and editing.", image: "https://images.unsplash.com/photo-1603302576837-37561b2e2302?w=500&auto=format&fit=crop&q=60" }
+      ],
+      "Mlimani Fashion": [
+        { id: 104, name: "Nike Air Max", price: "Tsh 250,000", description: "Comfortable and stylish sneakers.", image: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=500&auto=format&fit=crop&q=60" }
+      ],
+      "Smart Devices": [],
+      "Dar Furniture": []
+    }
+  })
+
+  // Hifadhi kwenye localStorage mabadiliko yanapotokea
+  useEffect(() => {
+    localStorage.setItem("horizon_cart", JSON.stringify(cart))
+  }, [cart])
+
+  useEffect(() => {
+    localStorage.setItem("horizon_products", JSON.stringify(shopProducts))
+  }, [shopProducts])
+
+  // Tengeneza array ya bidhaa zote kwa ajili ya kutafuta (Search) kwenye Home
+  const allProducts = Object.keys(shopProducts).flatMap(shopName => 
+    shopProducts[shopName].map(p => ({ ...p, shop: shopName }))
+  )
+
+  // STAGE 1: Kuchuja bidhaa kutokana na kile mteja anachochapa
+  const filteredProducts = allProducts.filter(product => 
+    product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    product.shop.toLowerCase().includes(searchQuery.toLowerCase())
+  )
 
   const addToCart = () => {
+    if (!selectedProduct) return
     setCart([
       ...cart,
       {
         ...selectedProduct,
-        shop: selectedShop
+        shop: selectedShop || "Horizon Main Store"
       }
     ])
+    alert("Bidhaa imewekwa kwenye Cart! 🛒")
   }
 
-  // Kazi inayoitwa mteja akibonyeza kuagiza kwa WhatsApp
-  const handleWhatsAppOrder = (shopName) => {
+  // LOGIC YA WHATSAPP DIRECT LINK YENYE UJUMBE WA HORIZON (Bidhaa moja)
+  const handleWhatsAppOrder = (shopName, product) => {
     setWhatsappClicks(prev => ({
       ...prev,
       [shopName]: (prev[shopName] || 0) + 1
     }))
     
-    // Hapa unaweza kuweka link halisi ya WhatsApp baadae, mfano:
-    // window.open(`https://wa.me/2557XXXXXXXX?text=Habari, nataka ${selectedProduct.name}`);
-    alert("Kuelekea WhatsApp... (Oda imerekodiwa kwenye Analytiki ya Wiki!)")
+    const phoneNumber = shopWhatsAppNumbers[shopName] || "255700000000"
+    const appLink = window.location.href
+    const message = `Habari ${shopName}, nataka kununua bidhaa hii:\n\n` +
+                    `📦 *Bidhaa:* ${product.name}\n` +
+                    `💰 *Bei:* ${product.price}\n\n` +
+                    `_Nimeiona bidhaa hii kupitia Horizon Marketplace._\n` +
+                    `👉 Link ya soko: ${appLink}`
+    
+    window.open(`https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`, "_blank")
+  }
+
+  // STAGE 3: LOGIC YA KUTUMA KIKATO CHA CART ZIMA KWENDA WHATSAPP
+  const handleCartCheckoutWhatsApp = () => {
+    if (cart.length === 0) return alert("Cart yako haina kitu kwa sasa!")
+    
+    const adminNumber = "255700000000" // Weka namba ya Admin wa Horizon hapa
+    const appLink = window.location.href
+    
+    let itemsText = ""
+    cart.forEach((item, index) => {
+      itemsText += `${index + 1}. *${item.name}* - ${item.price} (Kutoka: ${item.shop})\n`
+    })
+
+    const message = `🚀 *ODA MPYA KUTOKA HORIZON MARKETPLACE*\n\n` +
+                    `Habari Horizon Admin, naomba kuagiza bidhaa zifuatazo kutoka kwenye Cart yangu:\n\n` +
+                    `${itemsText}\n` +
+                    `🚚 *Aina ya Delivery:* ${deliveryType === "horizon" ? "Horizon Delivery" : "Pick Up Store"}\n` +
+                    `💰 *Jumla Kuu:* Tsh ${finalTotal.toLocaleString()}\n\n` +
+                    `_Mteja ameweka oda hii kupitia app yenu._\n` +
+                    `👉 Tembelea soko hapa: ${appLink}`
+
+    window.open(`https://wa.me/${adminNumber}?text=${encodeURIComponent(message)}`, "_blank")
+  }
+
+  // Handle fake sign in
+  const handleLogin = (e) => {
+    e.preventDefault()
+    if (username.trim() !== "" && password.trim() !== "") {
+      setIsLoggedIn(true)
+      alert(`Karibu tena, ${username}! Sasa unaweza kusimamai duka lako.`)
+    } else {
+      alert("Tafadhali jaza Username na Password kwanza!")
+    }
+  }
+
+  const handleLogout = () => {
+    setIsLoggedIn(false)
+    setUsername("")
+    setPassword("")
+    setPage("home")
   }
 
   const totalPrice = cart.reduce((sum, item) => {
     return sum + Number(item.price.replace(/[^0-9]/g, ""))
   }, 0)
 
-  const deliveryFee = deliveryType === "horizon" ? 3000 : 5000
+  const deliveryFee = deliveryType === "horizon" ? 3000 : 0
   const finalTotal = totalPrice + deliveryFee
-
-  // Data ya bidhaa za maduka (Dynamic)
-  const [shopProducts, setShopProducts] = useState({
-    "Kariakoo Electronics": [
-      { id: 101, name: "iPhone 15 Pro", price: "Tsh 2,400,000", description: "Latest Apple smartphone with premium camera." },
-      { id: 102, name: "Samsung Smart TV", price: "Tsh 1,200,000", description: "4K Smart TV with crystal clear display." }
-    ],
-    "Tech Zone": [
-      { id: 103, name: "Gaming Laptop", price: "Tsh 3,200,000", description: "High performance laptop for gaming and editing." }
-    ],
-    "Mlimani Fashion": [
-      { id: 104, name: "Nike Air Max", price: "Tsh 250,000", description: "Comfortable and stylish sneakers." }
-    ],
-    "Smart Devices": [],
-    "Dar Furniture": []
-  })
 
   // --- LOGIC ZA DASHBOARD (CRUD) ---
   const handleAddProduct = (e) => {
@@ -94,7 +179,9 @@ export default function App() {
       id: Date.now(), 
       name: newProduct.name,
       price: newProduct.price.startsWith("Tsh") ? newProduct.price : `Tsh ${newProduct.price}`,
-      description: newProduct.description || "Hakuna maelezo bado."
+      description: newProduct.description || "Hakuna maelezo bado.",
+      // Kama hajaweka picha, weka picha ya box ya default
+      image: newProduct.image.trim() !== "" ? newProduct.image : "https://images.unsplash.com/photo-1549465220-1a8b9238cd48?w=500&auto=format&fit=crop&q=60"
     }
 
     const currentShopProducts = shopProducts[newProduct.shop] || []
@@ -103,7 +190,7 @@ export default function App() {
       [newProduct.shop]: [...currentShopProducts, productToAdd]
     })
 
-    setNewProduct({ name: "", price: "", description: "", shop: newProduct.shop })
+    setNewProduct({ name: "", price: "", description: "", image: "", shop: newProduct.shop })
     alert("Bidhaa imewekwa dukani kwako kikamilifu! 🚀")
   }
 
@@ -113,11 +200,11 @@ export default function App() {
 
   const handleUpdateProduct = (e) => {
     e.preventDefault()
-    const { originalShop, id, name, price, description } = editingProduct
+    const { originalShop, id, name, price, description, image } = editingProduct
 
     const updatedShopProducts = (shopProducts[originalShop] || []).map(prod => {
       if (prod.id === id) {
-        return { ...prod, name, price: price.startsWith("Tsh") ? price : `Tsh ${price}`, description }
+        return { ...prod, name, price: price.startsWith("Tsh") ? price : `Tsh ${price}`, description, image }
       }
       return prod
     })
@@ -147,7 +234,7 @@ export default function App() {
         minHeight: "100vh",
         background: "linear-gradient(180deg,#0f172a,#111827,#1e293b)",
         color: "white",
-        fontFamily: "Arial"
+        fontFamily: "Arial, sans-serif"
       }}
     >
       {/* NAVBAR */}
@@ -167,13 +254,7 @@ export default function App() {
       >
         <h2
           onClick={() => setPage("home")}
-          style={{
-            margin: 0,
-            cursor: "pointer",
-            background: "linear-gradient(to right,#38bdf8,#8b5cf6)",
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent"
-          }}
+          style={{ margin: 0, cursor: "pointer", background: "linear-gradient(to right,#38bdf8,#8b5cf6)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}
         >
           Horizon
         </h2>
@@ -183,6 +264,11 @@ export default function App() {
           <span onClick={() => setPage("shops")} style={{ cursor: "pointer", color: page === "shops" ? "#38bdf8" : "white" }}>🏪 Shops</span>
           <span onClick={() => setPage("cart")} style={{ cursor: "pointer", color: page === "cart" ? "#38bdf8" : "white" }}>🛒 Cart ({cart.length})</span>
           <span onClick={() => setPage("dashboard")} style={{ cursor: "pointer", color: page === "dashboard" ? "#a855f7" : "white" }}>📊 Dashboard</span>
+          {isLoggedIn && (
+            <button onClick={handleLogout} style={{ background: "rgba(239,68,68,0.2)", color: "#f87171", border: "none", padding: "6px 12px", borderRadius: "8px", cursor: "pointer", fontWeight: "bold" }}>
+              Logout
+            </button>
+          )}
         </div>
       </div>
 
@@ -195,50 +281,62 @@ export default function App() {
               Horizon Marketplace
             </h1>
             <p style={{ color: "#cbd5e1", fontSize: "18px" }}>Discover trending products and explore amazing shops.</p>
-            <div style={{ marginTop: "30px", display: "flex", justify0Content: "center", justifyContent: "center" }}>
+            {/* STAGE 1: Search Input Logic */}
+            <div style={{ marginTop: "30px", display: "flex", justifyContent: "center" }}>
               <input
-                placeholder="Search products, shops..."
-                style={{ width: "70%", maxWidth: "650px", padding: "16px", borderRadius: "50px", border: "none", outline: "none", fontSize: "16px", background: "rgba(255,255,255,0.1)", color: "white", boxShadow: "0 0 20px rgba(59,130,246,0.3)" }}
+                type="text"
+                placeholder="Tafuta bidhaa au jina la duka..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                style={{ width: "90%", maxWidth: "650px", padding: "16px", borderRadius: "50px", border: "none", outline: "none", fontSize: "16px", background: "rgba(255,255,255,0.1)", color: "white", boxShadow: "0 0 20px rgba(59,130,246,0.3)" }}
               />
             </div>
           </div>
 
           {/* SHOPS */}
-          <div style={{ padding: "0 20px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "15px" }}>
-              <h2>🔥 Popular Shops</h2>
-              <button onClick={() => setPage("shops")} style={{ padding: "10px 18px", border: "none", borderRadius: "12px", background: "linear-gradient(to right,#06b6d4,#3b82f6)", color: "white", fontWeight: "bold", cursor: "pointer" }}>
-                View All Shops
-              </button>
+          {searchQuery === "" && (
+            <div style={{ padding: "0 20px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "15px" }}>
+                <h2>🔥 Popular Shops</h2>
+                <button onClick={() => setPage("shops")} style={{ padding: "10px 18px", border: "none", borderRadius: "12px", background: "linear-gradient(to right,#06b6d4,#3b82f6)", color: "white", fontWeight: "bold", cursor: "pointer" }}>
+                  View All Shops
+                </button>
+              </div>
+              <div style={{ display: "flex", gap: "15px", overflowX: "auto", paddingBottom: "10px" }}>
+                {shops.map((shop, index) => (
+                  <div
+                    key={index}
+                    onClick={() => { setSelectedShop(shop); setPage("shopProfile"); }}
+                    style={{ minWidth: "220px", padding: "20px", borderRadius: "18px", background: "linear-gradient(135deg,#2563eb,#7c3aed)", boxShadow: "0 10px 25px rgba(0,0,0,0.4)", cursor: "pointer", fontWeight: "bold" }}
+                  >
+                    🏪 {shop}
+                    <div style={{ marginTop: "10px", fontSize: "13px", color: "#dbeafe" }}>Trusted seller • Fast delivery</div>
+                  </div>
+                ))}
+              </div>
             </div>
-            <div style={{ display: "flex", gap: "15px", overflowX: "auto", paddingBottom: "10px" }}>
-              {shops.map((shop, index) => (
-                <div
-                  key={index}
-                  onClick={() => { setSelectedShop(shop); setPage("shopProfile"); }}
-                  style={{ minWidth: "220px", padding: "20px", borderRadius: "18px", background: "linear-gradient(135deg,#2563eb,#7c3aed)", boxShadow: "0 10px 25px rgba(0,0,0,0.4)", cursor: "pointer", fontWeight: "bold" }}
-                >
-                  🏪 {shop}
-                  <div style={{ marginTop: "10px", fontSize: "13px", color: "#dbeafe" }}>Trusted seller • Fast delivery</div>
-                </div>
-              ))}
-            </div>
-          </div>
+          )}
 
-          {/* PRODUCTS */}
+          {/* PRODUCTS SECTION (Realtime search filtering) */}
           <div style={{ padding: "30px 20px" }}>
-            <h2 style={{ marginBottom: "20px" }}>✨ Trending Products</h2>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(240px,1fr))", gap: "20px" }}>
-              {products.map(product => (
+            <h2>{searchQuery !== "" ? `Matokeo ya utafutaji (${filteredProducts.length})` : "✨ Trending Products"}</h2>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(240px,1fr))", gap: "20px", marginTop: "20px" }}>
+              {filteredProducts.map(product => (
                 <div key={product.id} style={{ background: "rgba(255,255,255,0.08)", borderRadius: "22px", overflow: "hidden", backdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,0.1)", boxShadow: "0 10px 25px rgba(0,0,0,0.3)" }}>
-                  <div style={{ height: "180px", background: "linear-gradient(135deg,#38bdf8,#8b5cf6,#ec4899)", display: "flex", justifyContent: "center", alignItems: "center", fontSize: "60px" }}>📦</div>
+                  {/* STAGE 2: Render image badala ya emoji */}
+                  <div style={{ height: "200px", overflow: "hidden", position: "relative" }}>
+                    <img src={product.image} alt={product.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  </div>
                   <div style={{ padding: "18px" }}>
-                    <h3 style={{ marginBottom: "8px" }}>{product.name}</h3>
+                    <span style={{ fontSize: "11px", background: "rgba(56,189,248,0.2)", color: "#38bdf8", padding: "3px 8px", borderRadius: "20px", display: "inline-block", marginBottom: "8px" }}>
+                      🏪 {product.shop}
+                    </span>
+                    <h3 style={{ marginBottom: "8px", fontSize: "18px" }}>{product.name}</h3>
                     <p style={{ color: "#38bdf8", fontWeight: "bold", fontSize: "18px" }}>{product.price}</p>
                     <button
                       onClick={() => {
-                        setSelectedProduct({ ...product, description: "Trending item kutoka soko kuu." })
-                        setSelectedShop("Kariakoo Electronics") 
+                        setSelectedProduct(product)
+                        setSelectedShop(product.shop) 
                         setPage("productDetails")
                       }}
                       style={{ width: "100%", marginTop: "15px", padding: "12px", border: "none", borderRadius: "12px", background: "linear-gradient(to right,#3b82f6,#8b5cf6)", color: "white", fontWeight: "bold", cursor: "pointer", fontSize: "15px" }}
@@ -249,6 +347,9 @@ export default function App() {
                 </div>
               ))}
             </div>
+            {filteredProducts.length === 0 && (
+              <p style={{ textAlign: "center", color: "#94a3b8", marginTop: "40px" }}>Hakuna bidhaa iliyopatikana yenye jina hilo.</p>
+            )}
           </div>
         </>
       )}
@@ -263,7 +364,7 @@ export default function App() {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(260px,1fr))", gap: "20px" }}>
             {shops.map((shop, index) => (
               <div key={index} style={{ background: "rgba(255,255,255,0.08)", borderRadius: "22px", padding: "20px", backdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,0.1)", boxShadow: "0 10px 25px rgba(0,0,0,0.3)" }}>
-                <div style={{ height: "160px", borderRadius: "18px", background: "linear-gradient(135deg,#0ea5e9,#8b5cf6,#ec4899)", display: "flex", justifyContent: "center", alignItems: "center", fontSize: "55px", marginBottom: "15px" }}>🏪</div>
+                <div style={{ height: "130px", borderRadius: "18px", background: "linear-gradient(135deg,#0ea5e9,#8b5cf6,#ec4899)", display: "flex", justifyContent: "center", alignItems: "center", fontSize: "55px", marginBottom: "15px" }}>🏪</div>
                 <h2>{shop}</h2>
                 <p style={{ color: "#cbd5e1" }}>Electronics • Fashion • Fast Delivery</p>
                 <button onClick={() => { setSelectedShop(shop); setPage("shopProfile"); }} style={{ width: "100%", marginTop: "18px", padding: "12px", border: "none", borderRadius: "12px", background: "linear-gradient(to right,#3b82f6,#8b5cf6)", color: "white", fontWeight: "bold", cursor: "pointer" }}>
@@ -278,7 +379,7 @@ export default function App() {
       {/* SHOP PROFILE */}
       {page === "shopProfile" && selectedShop && (
         <div style={{ padding: "30px 20px" }}>
-          <button onClick={() => setPage("shops")} style={{ padding: "10px 15px", borderRadius: "10px", border: "none", marginBottom: "20px", cursor: "pointer" }}>⬅ Back</button>
+          <button onClick={() => setPage("home")} style={{ padding: "10px 15px", borderRadius: "10px", border: "none", marginBottom: "20px", cursor: "pointer" }}>⬅ Back Home</button>
           <h1>{selectedShop}</h1>
           <p style={{ color: "#cbd5e1" }}>Verified shop • Trusted products • Fast delivery</p>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(240px,1fr))", gap: "20px", marginTop: "25px" }}>
@@ -287,10 +388,12 @@ export default function App() {
             ) : (
               (shopProducts[selectedShop] || []).map(product => (
                 <div key={product.id} style={{ background: "rgba(255,255,255,0.08)", borderRadius: "22px", overflow: "hidden", border: "1px solid rgba(255,255,255,0.1)" }}>
-                  <div onClick={() => { setSelectedProduct(product); setPage("productDetails"); }} style={{ height: "180px", background: "linear-gradient(135deg,#38bdf8,#8b5cf6,#ec4899)", display: "flex", justifyContent: "center", alignItems: "center", fontSize: "60px", cursor: "pointer" }}>📦</div>
+                  <div onClick={() => { setSelectedProduct(product); setSelectedShop(selectedShop); setPage("productDetails"); }} style={{ height: "180px", cursor: "pointer", overflow: "hidden" }}>
+                    <img src={product.image} alt={product.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  </div>
                   <div style={{ padding: "18px" }}>
                     <h3>{product.name}</h3>
-                    <p style={{ color: "#38bdf8" }}>{product.price}</p>
+                    <p style={{ color: "#38bdf8", fontWeight: "bold" }}>{product.price}</p>
                   </div>
                 </div>
               ))
@@ -301,26 +404,28 @@ export default function App() {
 
       {/* PRODUCT DETAILS */}
       {page === "productDetails" && selectedProduct && (
-        <div style={{ padding: "30px 20px" }}>
-          <button onClick={() => setPage("shopProfile")} style={{ padding: "10px 15px", borderRadius: "10px", border: "none", marginBottom: "20px", cursor: "pointer" }}>⬅ Back</button>
+        <div style={{ padding: "30px 20px", maxWidth: "800px", margin: "0 auto" }}>
+          <button onClick={() => setPage("home")} style={{ padding: "10px 15px", borderRadius: "10px", border: "none", marginBottom: "20px", cursor: "pointer" }}>⬅ Back Home</button>
           <div style={{ background: "rgba(255,255,255,0.08)", borderRadius: "24px", overflow: "hidden", border: "1px solid rgba(255,255,255,0.1)" }}>
-            <div style={{ height: "320px", background: "linear-gradient(135deg,#38bdf8,#8b5cf6,#ec4899)", display: "flex", justifyContent: "center", alignItems: "center", fontSize: "100px" }}>📦</div>
+            <div style={{ height: "400px", overflow: "hidden" }}>
+              <img src={selectedProduct.image} alt={selectedProduct.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            </div>
             <div style={{ padding: "25px" }}>
-              <h1>{selectedProduct.name}</h1>
+              <span style={{ fontSize: "14px", color: "#a855f7" }}>Duka: 🏪 {selectedShop}</span>
+              <h1 style={{ marginTop: "5px" }}>{selectedProduct.name}</h1>
               <h2 style={{ color: "#38bdf8", marginTop: "10px" }}>{selectedProduct.price}</h2>
-              <p style={{ color: "#cbd5e1", marginTop: "15px" }}>{selectedProduct.description}</p>
+              <p style={{ color: "#cbd5e1", marginTop: "15px", lineHeight: "1.6" }}>{selectedProduct.description}</p>
               
               <div style={{ display: "flex", gap: "15px", marginTop: "25px" }}>
                 <button onClick={addToCart} style={{ flex: 1, padding: "14px", border: "1px solid #3b82f6", borderRadius: "14px", background: "transparent", color: "white", fontWeight: "bold", cursor: "pointer" }}>
                   Weka kwenye Cart 🛒
                 </button>
                 
-                {/* MFUMO WA WHATSAPP CLICK */}
                 <button 
-                  onClick={() => handleWhatsAppOrder(selectedShop)}
+                  onClick={() => handleWhatsAppOrder(selectedShop, selectedProduct)}
                   style={{ flex: 2, padding: "14px", border: "none", borderRadius: "14px", background: "linear-gradient(to right,#22c55e,#16a34a)", color: "white", fontWeight: "bold", cursor: "pointer", fontSize: "16px" }}
                 >
-                  Agiza kwa WhatsApp 📱
+                  Agiza kwa WhatsApp Direct 📱
                 </button>
               </div>
             </div>
@@ -332,9 +437,11 @@ export default function App() {
       {page === "cart" && (
         <div style={{ padding: "30px 20px" }}>
           <h1 style={{ fontSize: "45px", background: "linear-gradient(to right,#38bdf8,#8b5cf6)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Your Cart 🛒</h1>
-          <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "25px", marginTop: "30px" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "25px", marginTop: "30px" }}>
             <div>
-              {cart.length === 0 ? <div style={{ background: "rgba(255,255,255,0.08)", padding: "30px", borderRadius: "22px" }}>Cart is empty.</div> : 
+              {cart.length === 0 ? (
+                <div style={{ background: "rgba(255,255,255,0.08)", padding: "30px", borderRadius: "22px" }}>Cart yako haina mzigo kwa sasa.</div>
+              ) : (
                 cart.map((item, index) => (
                   <div key={index} style={{ background: "rgba(255,255,255,0.08)", borderRadius: "22px", padding: "18px", marginBottom: "15px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <div>
@@ -342,234 +449,204 @@ export default function App() {
                       <p style={{ color: "#38bdf8" }}>{item.price}</p>
                       <p style={{ color: "#cbd5e1", fontSize: "14px" }}>🏪 {item.shop}</p>
                     </div>
-                    <div style={{ width: "90px", height: "90px", borderRadius: "18px", background: "linear-gradient(135deg,#38bdf8,#8b5cf6,#ec4899)", display: "flex", justifyContent: "center", alignItems: "center", fontSize: "35px" }}>📦</div>
+                    <div style={{ width: "90px", height: "90px", borderRadius: "18px", overflow: "hidden" }}>
+                      <img src={item.image} alt={item.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    </div>
                   </div>
                 ))
-              }
+              )}
+              {cart.length > 0 && (
+                <button 
+                  onClick={() => { setCart([]); alert("Cart imesafishwa! 🧹") }} 
+                  style={{ background: "rgba(239,68,68,0.2)", color: "#f87171", border: "none", padding: "10px 16px", borderRadius: "12px", cursor: "pointer", fontWeight: "bold", marginTop: "10px" }}
+                >
+                  Empty Cart 🗑️
+                </button>
+              )}
             </div>
-            <div style={{ background: "rgba(255,255,255,0.08)", padding: "25px", borderRadius: "24px", height: "fit-content" }}>
+
+            <div style={{ background: "rgba(30,41,59,0.7)", padding: "25px", borderRadius: "24px", height: "fit-content" }}>
               <h2>Delivery Options 🚚</h2>
               <div onClick={() => setDeliveryType("horizon")} style={{ marginTop: "20px", padding: "18px", borderRadius: "18px", cursor: "pointer", border: deliveryType === "horizon" ? "2px solid #38bdf8" : "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.05)" }}>
-                <h3>🚚 Horizon Delivery</h3>
+                <h3>🚚 Horizon Delivery (+ Tsh 3,000)</h3>
               </div>
-              <div style={{ marginTop: "30px" }}>
-                <div style={{ display: "flex", justify0Content: "space-between", justifyContent: "space-between" }}><span>Products</span><span>Tsh {totalPrice.toLocaleString()}</span></div>
-                <div style={{ display: "flex", justify0Content: "space-between", justifyContent: "space-between", marginTop: "20px", fontSize: "22px", fontWeight: "bold" }}><span>Total</span><span>Tsh {finalTotal.toLocaleString()}</span></div>
+              <div onClick={() => setDeliveryType("pickup")} style={{ marginTop: "10px", padding: "18px", borderRadius: "18px", cursor: "pointer", border: deliveryType === "pickup" ? "2px solid #38bdf8" : "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.05)" }}>
+                <h3>🏪 Pick Up at Store (Tsh 0)</h3>
               </div>
+
+              <div style={{ marginTop: "30px", borderTop: "1px solid rgba(255,255,255,0.1)", paddingTop: "20px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between" }}><span>Bidhaa</span><span>Tsh {totalPrice.toLocaleString()}</span></div>
+                <div style={{ display: "flex", justifyContent: "space-between", marginTop: "10px" }}><span>Gharama ya Usafiri</span><span>Tsh {deliveryFee.toLocaleString()}</span></div>
+                <div style={{ display: "flex", justifyContent: "space-between", marginTop: "20px", fontSize: "22px", fontWeight: "bold", color: "#38bdf8" }}><span>Total</span><span>Tsh {finalTotal.toLocaleString()}</span></div>
+              </div>
+
+              {/* STAGE 3: Action button ya kutuma kila kitu WhatsApp */}
+              <button 
+                onClick={handleCartCheckoutWhatsApp}
+                style={{ width: "100%", marginTop: "25px", padding: "16px", border: "none", borderRadius: "15px", background: "linear-gradient(to right, #22c55e, #16a34a)", color: "white", fontSize: "16px", fontWeight: "bold", cursor: "pointer", boxShadow: "0 4px 15px rgba(34,197,94,0.4)" }}
+              >
+                Kamilisha Oda zote WhatsApp 📱🚀
+              </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* --- DASHBOARD YA MUUZA DUKA ILIYOBORESHWA --- */}
+      {/* --- DASHBOARD YA WAUSAJI --- */}
       {page === "dashboard" && (
         <div style={{ padding: "30px 20px", maxWidth: "1200px", margin: "0 auto" }}>
-          
-          {/* HEADER */}
-          <div style={{ marginBottom: "30px", borderBottom: "1px solid rgba(255,255,255,0.1)", paddingBottom: "20px" }}>
-            <h1 style={{ fontSize: "38px", background: "linear-gradient(to right,#a855f7,#ec4899)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", margin: "0 0 10px 0" }}>
-              Kibarua Chako Leo 📊
-            </h1>
-            <p style={{ color: "#94a3b8", margin: 0, fontSize: "16px" }}>
-              Simamia bidhaa zako na uone wateja wanaobonyeza kuja WhatsApp kwako.
-            </p>
-          </div>
-
-          {/* 1. SEHEMU YA ANALYTIKI (ANALYTICS & SUMMARY) */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: "20px", marginBottom: "40px" }}>
-            {/* ANALYTIKI YA WHATSAPP YA WIKI HII */}
-            <div style={{ background: "rgba(34,197,94,0.1)", padding: "25px", borderRadius: "20px", border: "1px solid rgba(34,197,94,0.2)" }}>
-              <span style={{ fontSize: "14px", color: "#4ade80", fontWeight: "bold" }}>📱 ODA ZA WHATSAPP (WIKI HII)</span>
-              <h2 style={{ fontSize: "36px", margin: "10px 0 0 0", color: "#22c55e" }}>
-                {Object.values(whatsappClicks).reduce((acc, curr) => acc + curr, 0)} Clicks
+          {!isLoggedIn ? (
+            <div style={{ maxWidth: "450px", margin: "60px auto", background: "rgba(30,41,59,0.8)", padding: "40px", borderRadius: "24px", border: "1px solid rgba(255,255,255,0.1)", boxShadow: "0 20px 40px rgba(0,0,0,0.5)", textAlign: "center" }}>
+              <h2 style={{ margin: "0 0 10px 0", background: "linear-gradient(to right,#38bdf8,#a855f7)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", fontSize: "28px" }}>
+                Ingia Horizon Dashboard 📊
               </h2>
-              <span style={{ fontSize: "12px", color: "#94a3b8" }}>Idadi ya wateja waliotaka kununua dukani</span>
+              <p style={{ color: "#94a3b8", fontSize: "14px", marginBottom: "30px" }}>
+                Tafadhali weka akaunti yako ili uweze kupost, kuedit na kuona analytiki za bidhaa zako.
+              </p>
+
+              <form onSubmit={handleLogin} style={{ textAlign: "left" }}>
+                <div style={{ marginBottom: "20px" }}>
+                  <label style={{ display: "block", marginBottom: "8px", fontSize: "14px", color: "#cbd5e1" }}>Username / Jina la Duka</label>
+                  <input
+                    type="text"
+                    placeholder="Mfano: Kariakoo Electronics"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    style={{ width: "100%", padding: "14px", borderRadius: "12px", border: "1px solid rgba(255,255,255,0.1)", background: "#0f172a", color: "white", outline: "none", fontSize: "15px" }}
+                  />
+                </div>
+
+                <div style={{ marginBottom: "25px" }}>
+                  <label style={{ display: "block", marginBottom: "8px", fontSize: "14px", color: "#cbd5e1" }}>Password (Nenosiri)</label>
+                  <input
+                    type="password"
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    style={{ width: "100%", padding: "14px", borderRadius: "12px", border: "1px solid rgba(255,255,255,0.1)", background: "#0f172a", color: "white", outline: "none", fontSize: "15px" }}
+                  />
+                </div>
+
+                <button type="submit" style={{ width: "100%", padding: "15px", border: "none", borderRadius: "12px", background: "linear-gradient(to right, #3b82f6, #8b5cf6)", color: "white", fontWeight: "bold", cursor: "pointer", fontSize: "16px", boxShadow: "0 4px 12px rgba(59,130,246,0.3)" }}>
+                  Sign In Kuanza Kazi 🚀
+                </button>
+              </form>
             </div>
+          ) : (
+            <>
+              {/* WA-SIGN IN TAYARI */}
+              <div style={{ marginBottom: "30px", borderBottom: "1px solid rgba(255,255,255,0.1)", paddingBottom: "20px" }}>
+                <h1 style={{ fontSize: "38px", background: "linear-gradient(to right,#a855f7,#ec4899)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", margin: "0 0 10px 0" }}>
+                  Kibarua Chako Leo 📊 ({username})
+                </h1>
+                <p style={{ color: "#94a3b8", margin: 0, fontSize: "16px" }}>
+                  Umeshaingia kikamilifu. Simamia bidhaa zako na uone wateja wanaokuja WhatsApp.
+                </p>
+              </div>
 
-            {/* JUMLA YA BIDHAA ZILIZOPO */}
-            <div style={{ background: "rgba(56,189,248,0.1)", padding: "25px", borderRadius: "20px", border: "1px solid rgba(56,189,248,0.2)" }}>
-              <span style={{ fontSize: "14px", color: "#38bdf8", fontWeight: "bold" }}>📦 BIDHAA ZILIZOPO</span>
-              <h2 style={{ fontSize: "36px", margin: "10px 0 0 0", color: "#0ea5e9" }}>
-                {Object.values(shopProducts).reduce((acc, curr) => acc + curr.length, 0)} Items
-              </h2>
-              <span style={{ fontSize: "12px", color: "#94a3b8" }}>Bidhaa zote zipo hewani live</span>
-            </div>
-          </div>
+              {/* ANALYTIKI */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: "20px", marginBottom: "40px" }}>
+                <div style={{ background: "rgba(34,197,94,0.1)", padding: "25px", borderRadius: "20px", border: "1px solid rgba(34,197,94,0.2)" }}>
+                  <span style={{ fontSize: "14px", color: "#4ade80", fontWeight: "bold" }}>📱 ODA ZA WHATSAPP</span>
+                  <h2 style={{ fontSize: "36px", margin: "10px 0 0 0", color: "#22c55e" }}>
+                    {Object.values(whatsappClicks).reduce((acc, curr) => acc + curr, 0)} Clicks
+                  </h2>
+                </div>
 
-          {/* 2. MAIN SECTION: FOMU NA ORODHA */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(350px, 1fr))", gap: "30px", alignItems: "start" }}>
-            
-            {/* FOMU YA KUPOST / KUREDIT */}
-            <div style={{ background: "rgba(30,41,59,0.7)", padding: "30px", borderRadius: "24px", border: "1px solid rgba(255,255,255,0.05)" }}>
-              {editingProduct ? (
-                <form onSubmit={handleUpdateProduct}>
-                  <h3 style={{ margin: "0 0 20px 0", color: "#fbbf24" }}>✏️ Badilisha Sifa za Bidhaa</h3>
-                  
-                  <div style={{ marginBottom: "15px" }}>
-                    <label style={{ display: "block", marginBottom: "8px", fontSize: "14px", color: "#cbd5e1" }}>Jina la Bidhaa</label>
-                    <input
-                      type="text"
-                      value={editingProduct.name}
-                      onChange={(e) => setEditingProduct({ ...editingProduct, name: e.target.value })}
-                      style={{ width: "100%", padding: "14px", borderRadius: "12px", border: "1px solid rgba(255,255,255,0.1)", background: "#0f172a", color: "white", outline: "none" }}
-                    />
-                  </div>
+                <div style={{ background: "rgba(56,189,248,0.1)", padding: "25px", borderRadius: "20px", border: "1px solid rgba(56,189,248,0.2)" }}>
+                  <span style={{ fontSize: "14px", color: "#38bdf8", fontWeight: "bold" }}>📦 BIDHAA ZILIZOPO</span>
+                  <h2 style={{ fontSize: "36px", margin: "10px 0 0 0", color: "#0ea5e9" }}>
+                    {Object.values(shopProducts).reduce((acc, curr) => acc + curr.length, 0)} Items
+                  </h2>
+                </div>
+              </div>
 
-                  <div style={{ marginBottom: "15px" }}>
-                    <label style={{ display: "block", marginBottom: "8px", fontSize: "14px", color: "#cbd5e1" }}>Bei (Tsh)</label>
-                    <input
-                      type="text"
-                      value={editingProduct.price}
-                      onChange={(e) => setEditingProduct({ ...editingProduct, price: e.target.value })}
-                      style={{ width: "100%", padding: "14px", borderRadius: "12px", border: "1px solid rgba(255,255,255,0.1)", background: "#0f172a", color: "white", outline: "none" }}
-                    />
-                  </div>
-
-                  <div style={{ marginBottom: "20px" }}>
-                    <label style={{ display: "block", marginBottom: "8px", fontSize: "14px", color: "#cbd5e1" }}>Maelezo</label>
-                    <textarea
-                      rows="3"
-                      value={editingProduct.description}
-                      onChange={(e) => setEditingProduct({ ...editingProduct, description: e.target.value })}
-                      style={{ width: "100%", padding: "14px", borderRadius: "12px", border: "1px solid rgba(255,255,255,0.1)", background: "#0f172a", color: "white", outline: "none", fontFamily: "Arial", resize: "none" }}
-                    ></textarea>
-                  </div>
-
-                  <div style={{ display: "flex", gap: "10px" }}>
-                    <button type="submit" style={{ flex: 1, padding: "14px", border: "none", borderRadius: "12px", background: "linear-gradient(to right, #f59e0b, #ea580c)", color: "white", fontWeight: "bold", cursor: "pointer" }}>
-                      Hifadhi 💾
-                    </button>
-                    <button type="button" onClick={() => setEditingProduct(null)} style={{ padding: "14px", border: "none", borderRadius: "12px", background: "rgba(255,255,255,0.1)", color: "white", cursor: "pointer" }}>
-                      Ghairi
-                    </button>
-                  </div>
-                </form>
-              ) : (
-                <form onSubmit={handleAddProduct}>
-                  <h3 style={{ margin: "0 0 20px 0", color: "#38bdf8" }}>✨ Ongeza Bidhaa Mpya</h3>
-
-                  <div style={{ marginBottom: "15px" }}>
-                    <label style={{ display: "block", marginBottom: "8px", fontSize: "14px", color: "#cbd5e1" }}>Chagua Duka</label>
-                    <select
-                      value={newProduct.shop}
-                      onChange={(e) => setNewProduct({ ...newProduct, shop: e.target.value })}
-                      style={{ width: "100%", padding: "14px", borderRadius: "12px", border: "1px solid rgba(255,255,255,0.1)", background: "#0f172a", color: "white", outline: "none", cursor: "pointer" }}
-                    >
-                      {shops.map((shop, index) => (
-                        <option key={index} value={shop}>{shop}</option>
-                      ))}
-                    </select>
-                  </div>
-                  
-                  <div style={{ marginBottom: "15px" }}>
-                    <label style={{ display: "block", marginBottom: "8px", fontSize: "14px", color: "#cbd5e1" }}>Jina la Bidhaa</label>
-                    <input
-                      type="text"
-                      placeholder="Mfano: Smart Watch Series 9"
-                      value={newProduct.name}
-                      onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })}
-                      style={{ width: "100%", padding: "14px", borderRadius: "12px", border: "1px solid rgba(255,255,255,0.1)", background: "#0f172a", color: "white", outline: "none" }}
-                    />
-                  </div>
-
-                  <div style={{ marginBottom: "15px" }}>
-                    <label style={{ display: "block", marginBottom: "8px", fontSize: "14px", color: "#cbd5e1" }}>Bei (Tsh)</label>
-                    <input
-                      type="text"
-                      placeholder="Mfano: 85,000"
-                      value={newProduct.price}
-                      onChange={(e) => setNewProduct({ ...newProduct, price: e.target.value })}
-                      style={{ width: "100%", padding: "14px", borderRadius: "12px", border: "1px solid rgba(255,255,255,0.1)", background: "#0f172a", color: "white", outline: "none" }}
-                    />
-                  </div>
-
-                  <div style={{ marginBottom: "20px" }}>
-                    <label style={{ display: "block", marginBottom: "8px", fontSize: "14px", color: "#cbd5e1" }}>Maelezo/Sifa</label>
-                    <textarea
-                      rows="2"
-                      placeholder="Inakaa na chaji siku 3..."
-                      value={newProduct.description}
-                      onChange={(e) => setNewProduct({ ...newProduct, description: e.target.value })}
-                      style={{ width: "100%", padding: "14px", borderRadius: "12px", border: "1px solid rgba(255,255,255,0.1)", background: "#0f172a", color: "white", outline: "none", fontFamily: "Arial", resize: "none" }}
-                    ></textarea>
-                  </div>
-
-                  <button type="submit" style={{ width: "100%", padding: "15px", border: "none", borderRadius: "12px", background: "linear-gradient(to right, #3b82f6, #8b5cf6)", color: "white", fontWeight: "bold", cursor: "pointer", fontSize: "16px" }}>
-                    Ruhusu Ionekane Sokoni 🚀
-                  </button>
-                </form>
-              )}
-            </div>
-
-            {/* ORODHA YA BIDHAA NA ANALYTIKI YA MAREKODI */}
-            <div style={{ background: "rgba(255,255,255,0.02)", padding: "25px", borderRadius: "24px", border: "1px solid rgba(255,255,255,0.05)" }}>
-              <h3 style={{ margin: "0 0 20px 0" }}>📦 Bidhaa Zako na Clicks za Wiki</h3>
-
-              {Object.keys(shopProducts).map((shopName) => (
-                <div key={shopName} style={{ marginBottom: "25px" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid rgba(255,255,255,0.1)", paddingBottom: "5px", marginBottom: "12px" }}>
-                    <h4 style={{ color: "#38bdf8", margin: 0 }}>🏪 {shopName}</h4>
-                    <span style={{ fontSize: "12px", color: "#22c55e", background: "rgba(34,197,94,0.1)", padding: "2px 8px", borderRadius: "10px" }}>
-                      {whatsappClicks[shopName] || 0} wa-Agiza leo
-                    </span>
-                  </div>
-
-                  {shopProducts[shopName].length === 0 ? (
-                    <p style={{ color: "#64748b", fontSize: "14px", fontStyle: "italic", margin: "0 0 10px 0" }}>Duka halina bidhaa bado.</p>
-                  ) : (
-                    shopProducts[shopName].map((product) => (
-                      <div key={product.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#1e293b", padding: "12px 16px", borderRadius: "16px", marginBottom: "10px" }}>
-                        <div>
-                          <strong style={{ display: "block", color: "white" }}>{product.name}</strong>
-                          <span style={{ color: "#4ade80", fontSize: "14px" }}>{product.price}</span>
-                        </div>
-
-                        <div style={{ display: "flex", gap: "8px" }}>
-                          <button onClick={() => startEdit(product, shopName)} style={{ padding: "6px 12px", border: "none", borderRadius: "8px", background: "rgba(245,158,11,0.2)", color: "#fbbf24", cursor: "pointer", fontWeight: "bold" }}>
-                            ✏️ Edit
-                          </button>
-                          <button onClick={() => handleDeleteProduct(shopName, product.id)} style={{ padding: "6px 12px", border: "none", borderRadius: "8px", background: "rgba(239,68,68,0.2)", color: "#f87171", cursor: "pointer", fontWeight: "bold" }}>
-                            🗑️ Futa
-                          </button>
-                        </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(350px, 1fr))", gap: "30px", alignItems: "start" }}>
+                {/* FORMS */}
+                <div style={{ background: "rgba(30,41,59,0.7)", padding: "30px", borderRadius: "24px", border: "1px solid rgba(255,255,255,0.05)" }}>
+                  {editingProduct ? (
+                    <form onSubmit={handleUpdateProduct}>
+                      <h3 style={{ margin: "0 0 20px 0", color: "#fbbf24" }}>✏️ Badilisha Sifa za Bidhaa</h3>
+                      <div style={{ marginBottom: "15px" }}>
+                        <label style={{ display: "block", marginBottom: "8px", fontSize: "14px" }}>Jina la Bidhaa</label>
+                        <input type="text" value={editingProduct.name} onChange={(e) => setEditingProduct({ ...editingProduct, name: e.target.value })} style={{ width: "100%", padding: "14px", borderRadius: "12px", border: "1px solid rgba(255,255,255,0.1)", background: "#0f172a", color: "white", outline: "none" }} />
                       </div>
-                    ))
+                      <div style={{ marginBottom: "15px" }}>
+                        <label style={{ display: "block", marginBottom: "8px", fontSize: "14px" }}>Bei (Tsh)</label>
+                        <input type="text" value={editingProduct.price} onChange={(e) => setEditingProduct({ ...editingProduct, price: e.target.value })} style={{ width: "100%", padding: "14px", borderRadius: "12px", border: "1px solid rgba(255,255,255,0.1)", background: "#0f172a", color: "white", outline: "none" }} />
+                      </div>
+                      <div style={{ marginBottom: "15px" }}>
+                        <label style={{ display: "block", marginBottom: "8px", fontSize: "14px" }}>Link ya Picha ya Bidhaa (URL)</label>
+                        <input type="text" value={editingProduct.image} onChange={(e) => setEditingProduct({ ...editingProduct, image: e.target.value })} style={{ width: "100%", padding: "14px", borderRadius: "12px", border: "1px solid rgba(255,255,255,0.1)", background: "#0f172a", color: "white", outline: "none" }} />
+                      </div>
+                      <div style={{ marginBottom: "20px" }}>
+                        <label style={{ display: "block", marginBottom: "8px", fontSize: "14px" }}>Maelezo</label>
+                        <textarea rows="3" value={editingProduct.description} onChange={(e) => setEditingProduct({ ...editingProduct, description: e.target.value })} style={{ width: "100%", padding: "14px", borderRadius: "12px", border: "1px solid rgba(255,255,255,0.1)", background: "#0f172a", color: "white", outline: "none", resize: "none" }}></textarea>
+                      </div>
+                      <div style={{ display: "flex", gap: "10px" }}>
+                        <button type="submit" style={{ flex: 1, padding: "14px", border: "none", borderRadius: "12px", background: "linear-gradient(to right, #f59e0b, #ea580c)", color: "white", fontWeight: "bold", cursor: "pointer" }}>Hifadhi 💾</button>
+                        <button type="button" onClick={() => setEditingProduct(null)} style={{ padding: "14px", border: "none", borderRadius: "12px", background: "rgba(255,255,255,0.1)", color: "white", cursor: "pointer" }}>Ghairi</button>
+                      </div>
+                    </form>
+                  ) : (
+                    <form onSubmit={handleAddProduct}>
+                      <h3 style={{ margin: "0 0 20px 0", color: "#38bdf8" }}>✨ Ongeza Bidhaa Mpya</h3>
+                      <div style={{ marginBottom: "15px" }}>
+                        <label style={{ display: "block", marginBottom: "8px", fontSize: "14px" }}>Chagua Duka</label>
+                        <select value={newProduct.shop} onChange={(e) => setNewProduct({ ...newProduct, shop: e.target.value })} style={{ width: "100%", padding: "14px", borderRadius: "12px", border: "1px solid rgba(255,255,255,0.1)", background: "#0f172a", color: "white", outline: "none" }}>
+                          {shops.map((shop, index) => <option key={index} value={shop}>{shop}</option>)}
+                        </select>
+                      </div>
+                      <div style={{ marginBottom: "15px" }}>
+                        <label style={{ display: "block", marginBottom: "8px", fontSize: "14px" }}>Jina la Bidhaa</label>
+                        <input type="text" placeholder="Smart Watch Series 9" value={newProduct.name} onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })} style={{ width: "100%", padding: "14px", borderRadius: "12px", border: "1px solid rgba(255,255,255,0.1)", background: "#0f172a", color: "white", outline: "none" }} />
+                      </div>
+                      <div style={{ marginBottom: "15px" }}>
+                        <label style={{ display: "block", marginBottom: "8px", fontSize: "14px" }}>Bei (Tsh)</label>
+                        <input type="text" placeholder="85,000" value={newProduct.price} onChange={(e) => setNewProduct({ ...newProduct, price: e.target.value })} style={{ width: "100%", padding: "14px", borderRadius: "12px", border: "1px solid rgba(255,255,255,0.1)", background: "#0f172a", color: "white", outline: "none" }} />
+                      </div>
+                      <div style={{ marginBottom: "15px" }}>
+                        <label style={{ display: "block", marginBottom: "8px", fontSize: "14px" }}>Link ya Picha ya Bidhaa (URL)</label>
+                        <input type="text" placeholder="https://images.unsplash.com/... au weka wazi" value={newProduct.image} onChange={(e) => setNewProduct({ ...newProduct, image: e.target.value })} style={{ width: "100%", padding: "14px", borderRadius: "12px", border: "1px solid rgba(255,255,255,0.1)", background: "#0f172a", color: "white", outline: "none" }} />
+                      </div>
+                      <div style={{ marginBottom: "20px" }}>
+                        <label style={{ display: "block", marginBottom: "8px", fontSize: "14px" }}>Maelezo</label>
+                        <textarea rows="2" placeholder="Maelezo kuhusu bidhaa..." value={newProduct.description} onChange={(e) => setNewProduct({ ...newProduct, description: e.target.value })} style={{ width: "100%", padding: "14px", borderRadius: "12px", border: "1px solid rgba(255,255,255,0.1)", background: "#0f172a", color: "white", outline: "none", resize: "none" }}></textarea>
+                      </div>
+                      <button type="submit" style={{ width: "100%", padding: "15px", border: "none", borderRadius: "12px", background: "linear-gradient(to right, #3b82f6, #8b5cf6)", color: "white", fontWeight: "bold", cursor: "pointer", fontSize: "16px" }}>Ruhusu Ionekane Sokoni 🚀</button>
+                    </form>
                   )}
                 </div>
-              ))}
-            </div>
 
-          </div>
-
-          {/* 3. SEHEMU YA SUPPORT MY WORK (UCHANGIAJI) */}
-          <div
-            style={{
-              marginTop: "50px",
-              background: "linear-gradient(135deg, rgba(139,92,246,0.15), rgba(236,72,153,0.15))",
-              padding: "30px",
-              borderRadius: "24px",
-              border: "1px solid rgba(255,255,255,0.1)",
-              textAlign: "center"
-            }}
-          >
-            <h3 style={{ margin: "0 0 10px 0", fontSize: "22px", color: "#f472b6" }}>❤️ Unapenda Mfumo Huu? Support My Work</h3>
-            <p style={{ maxWidth: "700px", margin: "0 auto 20px auto", color: "#cbd5e1", lineHeight: "1.6", fontSize: "15px" }}>
-              Mfumo huu umetengenezwa kuwa **Bure 100%** kwa ajili ya kusaidia wafanyabiashara wote kukua mtandaoni. 
-              Kama umependezwa na unatamani kuchangia chochote (soda au bando) ili kuendeleza maboresho haya, unaweza kutuma kupitia namba zifuatazo:
-            </p>
-            <div style={{ display: "flex", justifyContent: "center", gap: "20px", flexWrap: "wrap", fontWeight: "bold" }}>
-              <div style={{ background: "rgba(255,255,255,0.05)", padding: "12px 25px", borderRadius: "14px", border: "1px solid rgba(255,255,255,0.05)" }}>
-                📱 TIGO PESA / M-PESA: <span style={{ color: "#38bdf8" }}>07XX XXX XXX</span>
+                {/* LIST OF PRODUCTS IN DASHBOARD */}
+                <div style={{ background: "rgba(255,255,255,0.02)", padding: "25px", borderRadius: "24px", border: "1px solid rgba(255,255,255,0.05)" }}>
+                  <h3 style={{ margin: "0 0 20px 0" }}>📦 Bidhaa Zako Zilizopo</h3>
+                  {Object.keys(shopProducts).map((shopName) => (
+                    <div key={shopName} style={{ marginBottom: "25px" }}>
+                      <div style={{ borderBottom: "1px solid rgba(255,255,255,0.1)", paddingBottom: "5px", marginBottom: "12px" }}>
+                        <h4 style={{ color: "#38bdf8", margin: 0 }}>🏪 {shopName}</h4>
+                      </div>
+                      {(shopProducts[shopName] || []).map(p => (
+                        <div key={p.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "rgba(255,255,255,0.05)", padding: "10px", borderRadius: "12px", marginBottom: "8px" }}>
+                          <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+                            <img src={p.image} alt="" style={{ width: "40px", height: "40px", borderRadius: "6px", objectFit: "cover" }} />
+                            <div>
+                              <div style={{ fontSize: "14px", fontWeight: "bold" }}>{p.name}</div>
+                              <div style={{ fontSize: "12px", color: "#38bdf8" }}>{p.price}</div>
+                            </div>
+                          </div>
+                          <div style={{ display: "flex", gap: "8px" }}>
+                            <button onClick={() => startEdit(p, shopName)} style={{ background: "#fbbf24", color: "black", border: "none", padding: "4px 8px", borderRadius: "6px", cursor: "pointer", fontSize: "12px", fontWeight: "bold" }}>✏️</button>
+                            <button onClick={() => handleDeleteProduct(shopName, p.id)} style={{ background: "#f87171", color: "black", border: "none", padding: "4px 8px", borderRadius: "6px", cursor: "pointer", fontSize: "12px", fontWeight: "bold" }}>🗑️</button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                </div>
               </div>
-              <div style={{ background: "rgba(255,255,255,0.05)", padding: "12px 25px", borderRadius: "14px", border: "1px solid rgba(255,255,255,0.05)" }}>
-                👤 Jina: <span style={{ color: "#ec4899" }}>JINA LAKO HAPA</span>
-              </div>
-            </div>
-            <p style={{ margin: "15px 0 0 0", fontSize: "13px", color: "#94a3b8", fontStyle: "italic" }}>
-              Asante sana kwa upendo na kuunga mkono kazi za bure! 🙏✨
-            </p>
-          </div>
-
+            </>
+          )}
         </div>
       )}
     </div>
