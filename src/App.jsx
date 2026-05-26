@@ -402,6 +402,149 @@ export default function App() {
           {isLoggedIn && <button onClick={handleLogout} style={{ background: "rgba(239,68,68,0.3)", color: "#f87171", border: "none", padding: "12px", borderRadius: "10px", cursor: "pointer", fontWeight: "bold", fontSize: "15px" }}>🚪 Logout</button>}
         </div>
       )}
+      {/* ============ DESKTOP NAVBAR (Juu) ============ */}
+{!isMobile && (
+  <div style={{ 
+    display: "flex", 
+    justifyContent: "space-between", 
+    alignItems: "center", 
+    padding: "18px 25px", 
+    background: "rgba(255,255,255,0.05)", 
+    backdropFilter: "blur(10px)", 
+    position: "sticky", 
+    top: 0, 
+    zIndex: 1000, 
+    borderBottom: "1px solid rgba(255,255,255,0.1)" 
+  }}>
+    <h2 onClick={() => navigateTo("home")} style={{ 
+      margin: 0, 
+      cursor: "pointer", 
+      background: "linear-gradient(to right,#38bdf8,#8b5cf6)", 
+      WebkitBackgroundClip: "text", 
+      WebkitTextFillColor: "transparent", 
+      fontSize: "24px" 
+    }}>
+      Horaizon
+    </h2>
+    <div style={{ display: "flex", gap: "20px", alignItems: "center", fontWeight: "bold" }}>
+      <span onClick={() => navigateTo("home")} style={navLinkStyle("home")}>🏠 Home</span>
+      <span onClick={() => navigateTo("shops")} style={navLinkStyle("shops")}>🏪 Shops</span>
+      <span onClick={() => navigateTo("cart")} style={navLinkStyle("cart")}>🛒 Cart ({cart.reduce((a,b) => a+b.quantity, 0)})</span>
+      <span onClick={() => navigateTo("dashboard")} style={navLinkStyle("dashboard")}>📊 Dashboard</span>
+      {isLoggedIn && (
+        <button onClick={handleLogout} style={{ background: "rgba(239,68,68,0.2)", color: "#f87171", border: "none", padding: "6px 12px", borderRadius: "8px", cursor: "pointer", fontWeight: "bold" }}>
+          Logout
+        </button>
+      )}
+    </div>
+  </div>
+)}
+
+{/* ============ MAIN CONTENT (with padding for bottom nav) ============ */}
+<div style={{ paddingBottom: isMobile ? "80px" : "0px" }}>
+  {/* All page content goes here */}
+  {/* HOME, SHOPS, CART, DASHBOARD, etc. */}
+</div>
+
+{/* ============ MOBILE BOTTOM NAVIGATION BAR (Chini) ============ */}
+{isMobile && (
+  <div style={{
+    position: "fixed",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    background: "rgba(15,23,42,0.95)",
+    backdropFilter: "blur(20px)",
+    borderTop: "1px solid rgba(255,255,255,0.1)",
+    display: "flex",
+    justifyContent: "space-around",
+    alignItems: "center",
+    padding: "10px 5px 20px 5px",
+    zIndex: 1000,
+    boxShadow: "0 -5px 25px rgba(0,0,0,0.5)"
+  }}>
+    {/* Home */}
+    <div onClick={() => navigateTo("home")} style={{
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      cursor: "pointer",
+      color: page === "home" ? "#38bdf8" : "#94a3b8",
+      gap: "4px",
+      transition: "all 0.2s"
+    }}>
+      <span style={{ fontSize: "22px" }}>{page === "home" ? "🏠" : "🏠"}</span>
+      <span style={{ fontSize: "10px", fontWeight: page === "home" ? "bold" : "normal" }}>Home</span>
+      {page === "home" && <div style={{ width: "4px", height: "4px", borderRadius: "50%", background: "#38bdf8" }} />}
+    </div>
+
+    {/* Shops */}
+    <div onClick={() => navigateTo("shops")} style={{
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      cursor: "pointer",
+      color: page === "shops" ? "#38bdf8" : "#94a3b8",
+      gap: "4px",
+      transition: "all 0.2s"
+    }}>
+      <span style={{ fontSize: "22px" }}>🏪</span>
+      <span style={{ fontSize: "10px", fontWeight: page === "shops" ? "bold" : "normal" }}>Shops</span>
+      {page === "shops" && <div style={{ width: "4px", height: "4px", borderRadius: "50%", background: "#38bdf8" }} />}
+    </div>
+
+    {/* Cart */}
+    <div onClick={() => navigateTo("cart")} style={{
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      cursor: "pointer",
+      color: page === "cart" ? "#38bdf8" : "#94a3b8",
+      gap: "4px",
+      position: "relative",
+      transition: "all 0.2s"
+    }}>
+      <span style={{ fontSize: "22px" }}>🛒</span>
+      {cart.reduce((a,b) => a+b.quantity, 0) > 0 && (
+        <span style={{
+          position: "absolute",
+          top: "0px",
+          right: "calc(50% - 18px)",
+          background: "#ef4444",
+          color: "white",
+          fontSize: "10px",
+          fontWeight: "bold",
+          minWidth: "18px",
+          height: "18px",
+          borderRadius: "50%",
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          padding: "2px"
+        }}>
+          {cart.reduce((a,b) => a+b.quantity, 0)}
+        </span>
+      )}
+      <span style={{ fontSize: "10px", fontWeight: page === "cart" ? "bold" : "normal" }}>Cart</span>
+      {page === "cart" && <div style={{ width: "4px", height: "4px", borderRadius: "50%", background: "#38bdf8" }} />}
+    </div>
+
+    {/* Dashboard */}
+    <div onClick={() => navigateTo("dashboard")} style={{
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      cursor: "pointer",
+      color: page === "dashboard" ? "#a855f7" : "#94a3b8",
+      gap: "4px",
+      transition: "all 0.2s"
+    }}>
+      <span style={{ fontSize: "22px" }}>📊</span>
+      <span style={{ fontSize: "10px", fontWeight: page === "dashboard" ? "bold" : "normal" }}>Dashboard</span>
+      {page === "dashboard" && <div style={{ width: "4px", height: "4px", borderRadius: "50%", background: "#a855f7" }} />}
+    </div>
+  </div>
+)}
 
       {/* HOME PAGE */}
       {page === "home" && (
