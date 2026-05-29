@@ -39,7 +39,6 @@ export default function App() {
     try { const savedCart = localStorage.getItem("baizona_cart"); return savedCart ? JSON.parse(savedCart) : [] } catch { return [] }
   })
 
-  // Auth states
   const [isLoggedIn, setIsLoggedIn] = useState(() => {
     try { const saved = localStorage.getItem("baizona_auth"); return saved ? true : false } catch { return false }
   })
@@ -52,19 +51,16 @@ export default function App() {
   })
   const [loggedInCustomer, setLoggedInCustomer] = useState(null)
 
-  // Customer auth states
   const [showCustomerAuth, setShowCustomerAuth] = useState(false)
   const [customerAuthMode, setCustomerAuthMode] = useState("login")
   const [customerForm, setCustomerForm] = useState({ name: "", phone: "", password: "", confirmPassword: "" })
   const [customerError, setCustomerError] = useState("")
   const [customerMessage, setCustomerMessage] = useState("")
 
-  // Customer profile states
   const [showCustomerProfile, setShowCustomerProfile] = useState(false)
   const [customerProfileForm, setCustomerProfileForm] = useState({ name: "", phone: "", currentPassword: "", newPassword: "", confirmNewPassword: "" })
   const [customerProfileMsg, setCustomerProfileMsg] = useState("")
 
-  // Shop registration states
   const [showShopRegister, setShowShopRegister] = useState(false)
   const [shopRegForm, setShopRegForm] = useState({
     name: "", logo: "", logoFile: null, category: "Electronics", description: "", location: "", phone: "", email: "",
@@ -80,18 +76,11 @@ export default function App() {
   const [loginAdminPassword, setLoginAdminPassword] = useState("")
   const isAdminMode = window.location.hash === '#admin'
 
-  const [editingProduct, setEditingProduct] = useState(null)
   const [newProduct, setNewProduct] = useState({ name: "", price: "", description: "", image: "", imageFile: null, shop: "" })
-  const [adminNewProduct, setAdminNewProduct] = useState({ name: "", price: "", description: "", image: "", imageFile: null })
 
   const [shopStats, setShopStats] = useState({ totalViews: 0, whatsappClicks: 0, cartAdditions: 0, totalProducts: 0 })
   const [adminStats, setAdminStats] = useState({ totalShops: 0, totalProducts: 0, totalViews: 0, totalWhatsappClicks: 0, totalCartAdditions: 0, totalLeads: 0, totalCustomers: 0, pendingShops: 0 })
 
-  const [editingShop, setEditingShop] = useState(null)
-  const [newShopData, setNewShopData] = useState({
-    name: "", logo: "", logoFile: null, category: "Electronics", description: "", location: "", phone: "", email: "",
-    working_hours: "Mon - Sat: 8AM - 6PM", rating: "4.0", password: "", status: "approved"
-  })
   const [adminTab, setAdminTab] = useState("overview")
   const [adminMessage, setAdminMessage] = useState("")
 
@@ -101,18 +90,11 @@ export default function App() {
 
   const categories = ["All", "Electronics", "Fashion", "Beauty", "Home", "Sports", "Food", "Books", "Services", "Other"]
 
-  const fetchProducts = async () => {
-    try { const { data, error } = await supabase.from('products').select('*').order('id', { ascending: false }); if (!error && data) setDbProducts(data) } catch {}
-  }
-  const fetchAllShops = async () => {
-    try { const { data, error } = await supabase.from('shops').select('*').order('id', { ascending: true }); if (!error && data) setDbShops(data) } catch {}
-  }
-  const fetchLeads = async () => {
-    try { const { data, error } = await supabase.from('leads').select('*').order('created_at', { ascending: false }); if (!error && data) setDbLeads(data) } catch {}
-  }
-  const fetchCustomers = async () => {
-    try { const { data, error } = await supabase.from('customers').select('*').order('id', { ascending: false }); if (!error && data) setDbCustomers(data) } catch {}
-  }
+  // ============ FETCH DATA ============
+  const fetchProducts = async () => { try { const { data } = await supabase.from('products').select('*').order('id', { ascending: false }); if (data) setDbProducts(data) } catch {} }
+  const fetchAllShops = async () => { try { const { data } = await supabase.from('shops').select('*').order('id', { ascending: true }); if (data) setDbShops(data) } catch {} }
+  const fetchLeads = async () => { try { const { data } = await supabase.from('leads').select('*').order('created_at', { ascending: false }); if (data) setDbLeads(data) } catch {} }
+  const fetchCustomers = async () => { try { const { data } = await supabase.from('customers').select('*').order('id', { ascending: false }); if (data) setDbCustomers(data) } catch {} }
 
   useEffect(() => { fetchProducts(); fetchAllShops(); fetchLeads(); fetchCustomers() }, [])
   useEffect(() => { try { localStorage.setItem("baizona_cart", JSON.stringify(cart)) } catch {} }, [cart])
@@ -123,8 +105,8 @@ export default function App() {
       if (saved) {
         const auth = JSON.parse(saved)
         if (auth.isCustomer && auth.customerId && dbCustomers.length > 0) {
-          const customer = dbCustomers.find(c => c.id === auth.customerId)
-          if (customer) { setIsCustomer(true); setIsLoggedIn(true); setLoggedInCustomer(customer) }
+          const c = dbCustomers.find(x => x.id === auth.customerId)
+          if (c) { setIsCustomer(true); setIsLoggedIn(true); setLoggedInCustomer(c) }
         }
         if (!auth.isAdmin && !auth.isCustomer && auth.shopName && auth.password && dbShops.length > 0) {
           const shop = dbShops.find(s => s.name === auth.shopName && s.password === auth.password)
@@ -134,15 +116,7 @@ export default function App() {
     } catch {}
   }, [dbShops, dbCustomers])
 
-  const uploadImage = async (file) => {
-    if (!file) return null
-    try {
-      const fn = `${Date.now()}-${file.name}`
-      const { error } = await supabase.storage.from('products-images').upload(fn, file)
-      if (!error) { const { data: urlData } = supabase.storage.from('products-images').getPublicUrl(fn); return urlData?.publicUrl || null }
-    } catch {}
-    return null
-  }
+  const uploadImage = async (file) => { if(!file)return null; try{const fn=`${Date.now()}-${file.name}`; const{error}=await supabase.storage.from('products-images').upload(fn,file); if(!error){const{data:u}=supabase.storage.from('products-images').getPublicUrl(fn);return u?.publicUrl||null}}catch{}return null }
 
   const trackProductView = async (p) => { try { await supabase.from('analytics').insert([{ shop_name: p.shop, product_id: p.id, action_type: 'view' }]) } catch {} }
   const trackWhatsAppClick = async (sn) => { try { await supabase.from('analytics').insert([{ shop_name: sn, action_type: 'whatsapp_click' }]) } catch {} }
@@ -153,74 +127,49 @@ export default function App() {
 
   const calculateAdminStats = async () => {
     const a = await fetchAnalytics()
-    const pending = dbShops.filter(s => s.status === 'pending').length
-    const approved = dbShops.filter(s => s.status === 'approved')
-    return { totalShops: approved.length, totalProducts: dbProducts.length, totalViews: a.filter(x => x.action_type === 'view').length, totalWhatsappClicks: a.filter(x => x.action_type === 'whatsapp_click').length, totalCartAdditions: a.filter(x => x.action_type === 'cart_add').length, totalLeads: dbLeads.length, totalCustomers: dbCustomers.length, pendingShops: pending }
+    return { totalShops: dbShops.filter(s=>s.status==='approved').length, totalProducts: dbProducts.length, totalViews: a.filter(x=>x.action_type==='view').length, totalWhatsappClicks: a.filter(x=>x.action_type==='whatsapp_click').length, totalCartAdditions: a.filter(x=>x.action_type==='cart_add').length, totalLeads: dbLeads.length, totalCustomers: dbCustomers.length, pendingShops: dbShops.filter(s=>s.status==='pending').length }
   }
 
   useEffect(() => { if (isAdmin) { calculateAdminStats().then(s => setAdminStats(s)) } }, [isAdmin, dbShops, dbProducts, dbLeads, dbCustomers])
 
-  const calculateShopStats = async (sn) => {
-    const a = await fetchAnalytics(); const sa = a.filter(x => x.shop_name === sn)
-    return { totalViews: sa.filter(x => x.action_type === 'view').length, whatsappClicks: sa.filter(x => x.action_type === 'whatsapp_click').length, cartAdditions: sa.filter(x => x.action_type === 'cart_add').length, totalProducts: dbProducts.filter(p => p.shop === sn).length }
-  }
+  const calculateShopStats = async (sn) => { const a = await fetchAnalytics(); const sa = a.filter(x=>x.shop_name===sn); return { totalViews: sa.filter(x=>x.action_type==='view').length, whatsappClicks: sa.filter(x=>x.action_type==='whatsapp_click').length, cartAdditions: sa.filter(x=>x.action_type==='cart_add').length, totalProducts: dbProducts.filter(p=>p.shop===sn).length } }
 
-  const getShopWhatsApp = (shopName) => { const shop = dbShops.find(s => s.name === shopName); return shop?.phone || "255700000000" }
+  const getShopWhatsApp = (sn) => { const s = dbShops.find(x=>x.name===sn); return s?.phone || "255700000000" }
   const approvedShops = dbShops.filter(s => s.status === 'approved')
   const filteredShops = selectedCategory === "All" ? approvedShops : approvedShops.filter(s => s.category === selectedCategory)
-  const filteredProducts = dbProducts.filter(p => {
-    const shop = dbShops.find(s => s.name === p.shop)
-    if (!shop || shop.status !== 'approved') return false
-    const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) || p.shop.toLowerCase().includes(searchQuery.toLowerCase())
-    const matchesCategory = selectedCategory === "All" || p.category === selectedCategory
-    return matchesSearch && matchesCategory
-  })
-
-  // ============ SHOP REGISTRATION ============
-  const handleShopRegister = async (e) => {
-    e.preventDefault(); setShopRegError(""); setShopRegMessage("")
-    if (!shopRegForm.name || !shopRegForm.password || !shopRegForm.category || !shopRegForm.phone) { setShopRegError("❌ Fill: Name, Category, Password, and Phone!"); return }
-    if (shopRegForm.password !== shopRegForm.confirmPassword) { setShopRegError("❌ Passwords don't match!"); return }
-    if (shopRegForm.password.length < 4) { setShopRegError("❌ Password must be 4+ chars!"); return }
-    const { data: existing } = await supabase.from('shops').select('*').eq('name', shopRegForm.name)
-    if (existing && existing.length > 0) { setShopRegError("❌ Shop name already exists!"); return }
-    let logoUrl = shopRegForm.logo || "🏪"
-    if (shopRegForm.logoFile) { const uploaded = await uploadImage(shopRegForm.logoFile); if (uploaded) logoUrl = uploaded }
-    const { error } = await supabase.from('shops').insert([{ name: shopRegForm.name, logo: logoUrl, category: shopRegForm.category, description: shopRegForm.description || "", location: shopRegForm.location || "", phone: shopRegForm.phone, email: shopRegForm.email || "", working_hours: shopRegForm.working_hours || "Mon - Sat: 8AM - 6PM", rating: "4.0", password: shopRegForm.password, status: 'pending' }])
-    if (error) { setShopRegError("❌ Failed: " + error.message) }
-    else { setShopRegMessage("✅ Shop registered! Wait for admin approval."); setShopRegForm({ name: "", logo: "", logoFile: null, category: "Electronics", description: "", location: "", phone: "", email: "", working_hours: "Mon - Sat: 8AM - 6PM", password: "", confirmPassword: "" }); fetchAllShops() }
-  }
+  const filteredProducts = dbProducts.filter(p => { const s = dbShops.find(x=>x.name===p.shop); if(!s||s.status!=='approved')return false; const ms = p.name.toLowerCase().includes(searchQuery.toLowerCase()) || p.shop.toLowerCase().includes(searchQuery.toLowerCase()); const mc = selectedCategory==="All"||p.category===selectedCategory; return ms&&mc })
 
   // ============ CUSTOMER AUTH ============
   const handleCustomerRegister = async (e) => {
     e.preventDefault(); setCustomerError(""); setCustomerMessage("")
-    if (!customerForm.name || !customerForm.password || !customerForm.phone) { setCustomerError("Fill all fields!"); return }
-    if (customerForm.password.length < 4) { setCustomerError("Password: 4+ chars!"); return }
-    if (customerForm.password !== customerForm.confirmPassword) { setCustomerError("Passwords don't match!"); return }
+    if (!customerForm.name || !customerForm.phone || !customerForm.password) { setCustomerError("Please fill in all fields!"); return }
+    if (customerForm.phone.length < 10) { setCustomerError("Phone number must be at least 10 digits!"); return }
+    if (customerForm.password.length < 4) { setCustomerError("Password must be at least 4 characters!"); return }
+    if (customerForm.password !== customerForm.confirmPassword) { setCustomerError("Passwords do not match!"); return }
     const { data: existing } = await supabase.from('customers').select('*').eq('phone', customerForm.phone)
-    if (existing && existing.length > 0) { setCustomerError("Phone already registered!"); return }
+    if (existing && existing.length > 0) { setCustomerError("Phone already registered! Please login instead."); return }
     const { error } = await supabase.from('customers').insert([{ name: customerForm.name, phone: customerForm.phone, password: customerForm.password }])
-    if (error) { setCustomerError("Failed: " + error.message) }
-    else { setCustomerMessage("✅ Registered! Now login."); setCustomerForm({ name: "", phone: "", password: "", confirmPassword: "" }); setCustomerAuthMode("login"); fetchCustomers() }
+    if (error) { setCustomerError("Registration failed: " + error.message) }
+    else { setCustomerMessage("Registration successful! You can now login."); setCustomerForm({ name: "", phone: "", password: "", confirmPassword: "" }); setCustomerAuthMode("login"); fetchCustomers() }
   }
 
   const handleCustomerLogin = async (e) => {
     e.preventDefault(); setCustomerError(""); setCustomerMessage("")
-    const { data } = await supabase.from('customers').select('*').eq('phone', customerForm.phone)
-    if (!data || data.length === 0) { setCustomerError("Account not found!"); return }
+    if (!customerForm.phone || !customerForm.password) { setCustomerError("Please fill in phone and password!"); return }
+    const { data, error } = await supabase.from('customers').select('*').eq('phone', customerForm.phone)
+    if (error) { setCustomerError("Login error: " + error.message); return }
+    if (!data || data.length === 0) { setCustomerError("Account not found! Please register first."); return }
     const customer = data[0]
-    if (customer.password !== customerForm.password) { setCustomerError("Wrong password!"); return }
+    if (customer.password !== customerForm.password) { setCustomerError("Wrong password! Please try again."); return }
     setIsCustomer(true); setIsLoggedIn(true); setLoggedInCustomer(customer); setShowCustomerAuth(false)
     setCustomerForm({ name: "", phone: "", password: "", confirmPassword: "" })
     try { localStorage.setItem("baizona_auth", JSON.stringify({ isCustomer: true, customerId: customer.id })) } catch {}
   }
 
-  // ============ CUSTOMER PROFILE UPDATE ============
-  const openCustomerProfile = () => {
-    setCustomerProfileForm({ name: loggedInCustomer?.name || "", phone: loggedInCustomer?.phone || "", currentPassword: "", newPassword: "", confirmNewPassword: "" })
-    setCustomerProfileMsg("")
-    setShowCustomerProfile(true)
-  }
+  const requireCustomerAuth = () => { if (!isCustomer && !isAdmin && !loggedInShop) { setShowCustomerAuth(true); setCustomerAuthMode("login"); return false } return true }
+
+  // ============ CUSTOMER PROFILE ============
+  const openCustomerProfile = () => { setCustomerProfileForm({ name: loggedInCustomer?.name||"", phone: loggedInCustomer?.phone||"", currentPassword: "", newPassword: "", confirmNewPassword: "" }); setCustomerProfileMsg(""); setShowCustomerProfile(true) }
 
   const handleCustomerProfileUpdate = async (e) => {
     e.preventDefault(); setCustomerProfileMsg("")
@@ -233,81 +182,49 @@ export default function App() {
     else { setCustomerProfileMsg("✅ Profile updated!"); const { data } = await supabase.from('customers').select('*').eq('id', loggedInCustomer.id).single(); if (data) { setLoggedInCustomer(data); try { localStorage.setItem("baizona_auth", JSON.stringify({ isCustomer: true, customerId: data.id })) } catch {} } }
   }
 
-  const requireCustomerAuth = (action) => {
-    if (!isCustomer && !isAdmin && !loggedInShop) { setShowCustomerAuth(true); setCustomerAuthMode("login"); return false }
-    return true
-  }
+  const getCustomerLeads = () => dbLeads.filter(l => l.customer_id === loggedInCustomer?.id)
 
-  // ============ CART & ORDER ============
-  const addToCart = () => { if (!selectedProduct || !requireCustomerAuth()) return; const shop = selectedShop?.name || selectedProduct.shop || "Baizona"; const np = typeof selectedProduct.price === 'number' ? selectedProduct.price : Number(String(selectedProduct.price).replace(/[^0-9]/g, "")); setCart(prev => { const ex = prev.find(i => i.id === selectedProduct.id); return ex ? prev.map(i => i.id === selectedProduct.id ? { ...i, quantity: i.quantity + 1 } : i) : [...prev, { ...selectedProduct, price: np, quantity: 1, shop }] }); trackCartAddition(selectedProduct); alert("Added to Cart!") }
-  const addToCartDirect = (product, shopName) => { if (!requireCustomerAuth()) return; const np = typeof product.price === 'number' ? product.price : Number(String(product.price).replace(/[^0-9]/g, "")); setCart(prev => { const ex = prev.find(i => i.id === product.id); return ex ? prev.map(i => i.id === product.id ? { ...i, quantity: i.quantity + 1 } : i) : [...prev, { ...product, price: np, quantity: 1, shop: shopName }] }); trackCartAddition(product); alert("Added to Cart!") }
+  // ============ CART ============
+  const addToCart = () => { if(!selectedProduct||!requireCustomerAuth())return; const s=selectedShop?.name||selectedProduct.shop||"Baizona"; const np=typeof selectedProduct.price==='number'?selectedProduct.price:Number(String(selectedProduct.price).replace(/[^0-9]/g,"")); setCart(p=>{const ex=p.find(i=>i.id===selectedProduct.id);return ex?p.map(i=>i.id===selectedProduct.id?{...i,quantity:i.quantity+1}:i):[...p,{...selectedProduct,price:np,quantity:1,shop:s}]}); trackCartAddition(selectedProduct); alert("Added to Cart!") }
+  const addToCartDirect = (p,sn) => { if(!requireCustomerAuth())return; const np=typeof p.price==='number'?p.price:Number(String(p.price).replace(/[^0-9]/g,"")); setCart(pr=>{const ex=pr.find(i=>i.id===p.id);return ex?pr.map(i=>i.id===p.id?{...i,quantity:i.quantity+1}:i):[...pr,{...p,price:np,quantity:1,shop:sn}]}); trackCartAddition(p); alert("Added to Cart!") }
   const updateQuantity = (id, amt) => { setCart(prev => prev.map(i => i.id === id ? { ...i, quantity: i.quantity + amt } : i).filter(i => i.quantity > 0)) }
   const cartGroupedByShop = cart.reduce((g, i) => { const s = i.shop || "Unknown"; if (!g[s]) g[s] = []; g[s].push(i); return g }, {})
 
-  const handleWhatsAppOrder = (sn, p) => { if (!requireCustomerAuth()) return; trackWhatsAppClick(sn); trackLead(p.name, sn, "WhatsApp Order", loggedInCustomer?.id); window.open(`https://wa.me/${getShopWhatsApp(sn)}?text=${encodeURIComponent(`Hello ${sn}, I want: ${p.name} - ${p.price}\nFrom Baizona\nCustomer: ${loggedInCustomer?.name || ''} (${loggedInCustomer?.phone || ''})`)}`, "_blank") }
-  const handleShopCheckoutWhatsApp = (sn, items) => { if (!requireCustomerAuth()) return; trackWhatsAppClick(sn); items.forEach(i => trackLead(i.name, sn, "Cart Checkout", loggedInCustomer?.id)); let txt = "", total = 0; items.forEach((i, idx) => { const st = i.price * i.quantity; total += st; txt += `${idx + 1}. ${i.name} (X${i.quantity}) - Tsh ${st.toLocaleString()}\n` }); window.open(`https://wa.me/${getShopWhatsApp(sn)}?text=${encodeURIComponent(`ORDER FROM BAIZONA\n\n${txt}\nTotal: Tsh ${total.toLocaleString()}\nCustomer: ${loggedInCustomer?.name || ''} (${loggedInCustomer?.phone || ''})`)}`, "_blank") }
+  const handleWhatsAppOrder = (sn, p) => { if(!requireCustomerAuth())return; trackWhatsAppClick(sn); trackLead(p.name,sn,"WhatsApp Order",loggedInCustomer?.id); window.open(`https://wa.me/${getShopWhatsApp(sn)}?text=${encodeURIComponent(`Hello ${sn}, I want: ${p.name} - ${p.price}\nFrom Baizona\nCustomer: ${loggedInCustomer?.name||''} (${loggedInCustomer?.phone||''})`)}`,"_blank") }
+  const handleShopCheckoutWhatsApp = (sn, items) => { if(!requireCustomerAuth())return; trackWhatsAppClick(sn); items.forEach(i=>trackLead(i.name,sn,"Cart Checkout",loggedInCustomer?.id)); let txt="",total=0; items.forEach((i,idx)=>{const st=i.price*i.quantity;total+=st;txt+=`${idx+1}. ${i.name} (X${i.quantity}) - Tsh ${st.toLocaleString()}\n`}); window.open(`https://wa.me/${getShopWhatsApp(sn)}?text=${encodeURIComponent(`ORDER FROM BAIZONA\n\n${txt}\nTotal: Tsh ${total.toLocaleString()}\nCustomer: ${loggedInCustomer?.name||''} (${loggedInCustomer?.phone||''})`)}`,"_blank") }
+
+  // ============ SHOP REGISTRATION ============
+  const handleShopRegister = async (e) => {
+    e.preventDefault(); setShopRegError(""); setShopRegMessage("")
+    if (!shopRegForm.name || !shopRegForm.password || !shopRegForm.category || !shopRegForm.phone) { setShopRegError("❌ Fill: Name, Category, Password, Phone!"); return }
+    if (shopRegForm.password !== shopRegForm.confirmPassword) { setShopRegError("❌ Passwords don't match!"); return }
+    if (shopRegForm.password.length < 4) { setShopRegError("❌ Password: 4+ chars!"); return }
+    const { data: existing } = await supabase.from('shops').select('*').eq('name', shopRegForm.name)
+    if (existing && existing.length > 0) { setShopRegError("❌ Shop name already exists!"); return }
+    let logoUrl = shopRegForm.logo || "🏪"
+    if (shopRegForm.logoFile) { const uploaded = await uploadImage(shopRegForm.logoFile); if (uploaded) logoUrl = uploaded }
+    const { error } = await supabase.from('shops').insert([{ name: shopRegForm.name, logo: logoUrl, category: shopRegForm.category, description: shopRegForm.description||"", location: shopRegForm.location||"", phone: shopRegForm.phone, email: shopRegForm.email||"", working_hours: shopRegForm.working_hours||"Mon - Sat: 8AM - 6PM", rating: "4.0", password: shopRegForm.password, status: 'pending' }])
+    if (error) { setShopRegError("❌ Failed: " + error.message) }
+    else { setShopRegMessage("✅ Shop registered! Wait for admin approval."); setShopRegForm({ name: "", logo: "", logoFile: null, category: "Electronics", description: "", location: "", phone: "", email: "", working_hours: "Mon - Sat: 8AM - 6PM", password: "", confirmPassword: "" }); fetchAllShops() }
+  }
 
   // ============ LOGIN ============
-  const handleLogin = async (e) => {
-    e.preventDefault(); setLoginError("")
-    if (!loginShopName || !loginPassword) { setLoginError("Fill shop name and password!"); return }
-    const shop = dbShops.find(s => s.name.toLowerCase() === loginShopName.toLowerCase())
-    if (!shop) { setLoginError("Shop not found!"); return }
-    if (shop.status !== 'approved') { setLoginError("Shop not approved yet!"); return }
-    if (shop.password !== loginPassword) { setLoginError("Wrong password!"); return }
-    setIsLoggedIn(true); setIsAdmin(false); setIsCustomer(false); setLoggedInShop(shop)
-    try { const stats = await calculateShopStats(shop.name); setShopStats(stats) } catch {}
-    try { localStorage.setItem("baizona_auth", JSON.stringify({ shopName: shop.name, password: shop.password, isAdmin: false })) } catch {}
-    setLoginShopName(""); setLoginPassword("")
-  }
+  const handleLogin = async (e) => { e.preventDefault(); setLoginError(""); if(!loginShopName||!loginPassword){setLoginError("Fill shop name and password!");return}; const shop=dbShops.find(s=>s.name.toLowerCase()===loginShopName.toLowerCase()); if(!shop){setLoginError("Shop not found!");return}; if(shop.status!=='approved'){setLoginError("Shop not approved yet!");return}; if(shop.password!==loginPassword){setLoginError("Wrong password!");return}; setIsLoggedIn(true);setIsAdmin(false);setIsCustomer(false);setLoggedInShop(shop); try{const stats=await calculateShopStats(shop.name);setShopStats(stats)}catch{}; try{localStorage.setItem("baizona_auth",JSON.stringify({shopName:shop.name,password:shop.password,isAdmin:false}))}catch{}; setLoginShopName("");setLoginPassword("") }
 
-  const handleAdminLogin = (e) => {
-    e.preventDefault(); setLoginError("")
-    if (!loginEmail || !loginAdminPassword) { setLoginError("Fill email and password!"); return }
-    if (loginEmail === ADMIN_EMAIL && loginAdminPassword === ADMIN_PASSWORD) {
-      setIsAdmin(true); setIsLoggedIn(true); setIsCustomer(false); setLoginEmail(""); setLoginAdminPassword(""); setPage("dashboard")
-      try { localStorage.setItem("baizona_auth", JSON.stringify({ isAdmin: true })) } catch {}
-      calculateAdminStats().then(s => setAdminStats(s))
-    } else setLoginError("Wrong email or password!")
-  }
+  const handleAdminLogin = (e) => { e.preventDefault(); setLoginError(""); if(!loginEmail||!loginAdminPassword){setLoginError("Fill email and password!");return}; if(loginEmail===ADMIN_EMAIL&&loginAdminPassword===ADMIN_PASSWORD){setIsAdmin(true);setIsLoggedIn(true);setIsCustomer(false);setLoginEmail("");setLoginAdminPassword("");setPage("dashboard"); try{localStorage.setItem("baizona_auth",JSON.stringify({isAdmin:true}))}catch{}; calculateAdminStats().then(s=>setAdminStats(s))}else setLoginError("Wrong email or password!") }
 
-  const handleLogout = () => {
-    setIsLoggedIn(false); setLoggedInShop(null); setIsAdmin(false); setIsCustomer(false); setLoggedInCustomer(null)
-    setShopStats({ totalViews: 0, whatsappClicks: 0, cartAdditions: 0, totalProducts: 0 })
-    setLoginError(""); setAdminTab("overview"); setPage("home"); setShowProfileSettings(false); setShowCustomerAuth(false); setShowShopRegister(false); setShowCustomerProfile(false)
-    try { localStorage.removeItem("baizona_auth") } catch {}
-  }
+  const handleLogout = () => { setIsLoggedIn(false);setLoggedInShop(null);setIsAdmin(false);setIsCustomer(false);setLoggedInCustomer(null);setShopStats({totalViews:0,whatsappClicks:0,cartAdditions:0,totalProducts:0});setLoginError("");setAdminTab("overview");setPage("home");setShowProfileSettings(false);setShowCustomerAuth(false);setShowShopRegister(false);setShowCustomerProfile(false); try{localStorage.removeItem("baizona_auth")}catch{} }
 
-  // ============ ADMIN FUNCTIONS ============
-  const handleAddShop = async (e) => {
-    e.preventDefault(); setAdminMessage("")
-    if (!newShopData.name || !newShopData.password || !newShopData.category) { setAdminMessage("❌ Fill: Name, Category, Password!"); return }
-    let logoUrl = newShopData.logo || "🏪"
-    if (newShopData.logoFile) { const uploaded = await uploadImage(newShopData.logoFile); if (uploaded) logoUrl = uploaded }
-    const { error } = await supabase.from('shops').insert([{ name: newShopData.name, logo: logoUrl, category: newShopData.category, description: newShopData.description || "", location: newShopData.location || "", phone: newShopData.phone || "", email: newShopData.email || "", working_hours: newShopData.working_hours || "Mon - Sat: 8AM - 6PM", rating: newShopData.rating || "4.0", password: newShopData.password, status: newShopData.status }])
-    if (error) { setAdminMessage("❌ Failed: " + error.message) }
-    else { setAdminMessage("✅ Shop added!"); setNewShopData({ name: "", logo: "", logoFile: null, category: "Electronics", description: "", location: "", phone: "", email: "", working_hours: "Mon - Sat: 8AM - 6PM", rating: "4.0", password: "", status: "approved" }); fetchAllShops(); calculateAdminStats().then(s => setAdminStats(s)) }
-  }
+  // ============ ADMIN ============
+  const handleApproveShop = async (shop) => { const{error}=await supabase.from('shops').update({status:'approved'}).eq('id',shop.id); if(error){setAdminMessage("❌ Failed: "+error.message)}else{setAdminMessage(`✅ "${shop.name}" approved!`);fetchAllShops();calculateAdminStats().then(s=>setAdminStats(s))} }
+  const handleRejectShop = async (shop) => { if(confirm(`Reject "${shop.name}"?`)){const{error}=await supabase.from('shops').delete().eq('id',shop.id);if(error){setAdminMessage("❌ Failed: "+error.message)}else{setAdminMessage(`❌ "${shop.name}" rejected!`);fetchAllShops();calculateAdminStats().then(s=>setAdminStats(s))}} }
+  const handleDeleteShop = async (id,name) => { if(confirm(`Delete "${name}"?`)){try{await supabase.from('products').delete().eq('shop',name)}catch{};try{await supabase.from('leads').delete().eq('shop_name',name)}catch{};const{error}=await supabase.from('shops').delete().eq('id',id);if(error){alert("Failed: "+error.message)}else{fetchAllShops();fetchProducts();fetchLeads();alert("✅ Deleted!");calculateAdminStats().then(s=>setAdminStats(s))}} }
+  const handleDeleteProduct = async (pid) => { if(confirm("Delete?")){await supabase.from('products').delete().eq('id',pid);fetchProducts()} }
 
-  const handleApproveShop = async (shop) => {
-    const { error } = await supabase.from('shops').update({ status: 'approved' }).eq('id', shop.id)
-    if (error) { setAdminMessage("❌ Failed: " + error.message) }
-    else { setAdminMessage(`✅ "${shop.name}" approved!`); fetchAllShops(); calculateAdminStats().then(s => setAdminStats(s)) }
-  }
+  const handleAddProduct = async (e) => { e.preventDefault(); if(!newProduct.name||!newProduct.price){alert("Fill name and price!");return}; let img=newProduct.image||"https://images.unsplash.com/photo-1549465220-1a8b9238cd48?w=500"; if(newProduct.imageFile){const u=await uploadImage(newProduct.imageFile);if(u)img=u}; const{error}=await supabase.from('products').insert([{name:newProduct.name,price:newProduct.price,description:newProduct.description||"",image:img,shop:loggedInShop?.name||newProduct.shop}]); if(error){alert("Failed: "+error.message)}else{alert("✅ Product added!");setNewProduct({name:"",price:"",description:"",image:"",imageFile:null,shop:loggedInShop?.name||""});fetchProducts();if(loggedInShop){try{const stats=await calculateShopStats(loggedInShop.name);setShopStats(stats)}catch{}}} }
 
-  const handleRejectShop = async (shop) => {
-    if (confirm(`Reject "${shop.name}"?`)) { const { error } = await supabase.from('shops').delete().eq('id', shop.id); if (error) { setAdminMessage("❌ Failed: " + error.message) } else { setAdminMessage(`❌ "${shop.name}" rejected!`); fetchAllShops(); calculateAdminStats().then(s => setAdminStats(s)) } }
-  }
-
-  const handleUpdateShop = async (e) => { e.preventDefault(); if (!editingShop?.name) { alert("Name required!"); return }; let logoUrl = editingShop.logo || "🏪"; if (editingShop.logoFile) { const uploaded = await uploadImage(editingShop.logoFile); if (uploaded) logoUrl = uploaded }; const { error } = await supabase.from('shops').update({ name: editingShop.name, logo: logoUrl, category: editingShop.category, description: editingShop.description, location: editingShop.location, phone: editingShop.phone, email: editingShop.email, working_hours: editingShop.working_hours, rating: editingShop.rating, password: editingShop.password, status: editingShop.status }).eq('id', editingShop.id); if (error) { alert("Failed: " + error.message) } else { setEditingShop(null); fetchAllShops(); alert("✅ Saved!") } }
-
-  const handleDeleteShop = async (id, name) => { if (confirm(`Delete "${name}"?`)) { try { await supabase.from('products').delete().eq('shop', name) } catch {}; try { await supabase.from('leads').delete().eq('shop_name', name) } catch {}; try { await supabase.from('analytics').delete().eq('shop_name', name) } catch {}; const { error } = await supabase.from('shops').delete().eq('id', id); if (error) { alert("Failed: " + error.message) } else { fetchAllShops(); fetchProducts(); fetchLeads(); alert("✅ Deleted!"); calculateAdminStats().then(s => setAdminStats(s)) } } }
-
-  const handleAddProduct = async (e) => { e.preventDefault(); if (!newProduct.name || !newProduct.price) { alert("Fill name and price!"); return }; let imageUrl = newProduct.image || "https://images.unsplash.com/photo-1549465220-1a8b9238cd48?w=500"; if (newProduct.imageFile) { const uploaded = await uploadImage(newProduct.imageFile); if (uploaded) imageUrl = uploaded }; const { error } = await supabase.from('products').insert([{ name: newProduct.name, price: newProduct.price, description: newProduct.description || "", image: imageUrl, shop: loggedInShop?.name || newProduct.shop }]); if (error) { alert("Failed: " + error.message) } else { alert("✅ Product added!"); setNewProduct({ name: "", price: "", description: "", image: "", imageFile: null, shop: loggedInShop?.name || "" }); fetchProducts(); if (loggedInShop) { try { const stats = await calculateShopStats(loggedInShop.name); setShopStats(stats) } catch {} } } }
-
-  const handleDeleteProduct = async (pid) => { if (confirm("Delete?")) { await supabase.from('products').delete().eq('id', pid); fetchProducts() } }
   const getShopLeads = (sn) => dbLeads.filter(l => l.shop_name === sn)
-  const getCustomerLeads = () => dbLeads.filter(l => l.customer_id === loggedInCustomer?.id)
+
   const navigateTo = (p) => { setPage(p); setShowProfileSettings(false); setSelectedCategory("All"); setShowCustomerAuth(false); setShowShopRegister(false); setShowCustomerProfile(false) }
 
   const compactGrid = { display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(auto-fill, minmax(160px, 1fr))", gap: isMobile ? "8px" : "12px", marginTop: "10px" }
@@ -338,6 +255,36 @@ export default function App() {
         )}
       </div>
 
+      {/* CUSTOMER AUTH MODAL */}
+      {showCustomerAuth && (
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.85)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 2000, padding: "20px" }}>
+          <div style={{ background: "#1e293b", padding: isMobile ? "18px" : "28px", borderRadius: "16px", maxWidth: "400px", width: "100%", border: "1px solid rgba(255,255,255,0.1)" }}>
+            <div style={{ display: "flex", marginBottom: "16px", background: "rgba(0,0,0,0.2)", borderRadius: "10px", padding: "3px" }}>
+              <button onClick={() => { setCustomerAuthMode("login"); setCustomerError(""); setCustomerMessage("") }} style={{ flex: 1, padding: "10px", borderRadius: "8px", border: "none", fontWeight: "bold", fontSize: "13px", cursor: "pointer", background: customerAuthMode === "login" ? "#3b82f6" : "transparent", color: "white" }}>Login</button>
+              <button onClick={() => { setCustomerAuthMode("register"); setCustomerError(""); setCustomerMessage("") }} style={{ flex: 1, padding: "10px", borderRadius: "8px", border: "none", fontWeight: "bold", fontSize: "13px", cursor: "pointer", background: customerAuthMode === "register" ? "#22c55e" : "transparent", color: "white" }}>Register</button>
+            </div>
+            {customerError && <div style={{ background: "rgba(239,68,68,0.15)", color: "#f87171", padding: "10px", borderRadius: "8px", marginBottom: "12px", fontSize: "12px", textAlign: "center" }}>❌ {customerError}</div>}
+            {customerMessage && <div style={{ background: "rgba(34,197,94,0.15)", color: "#4ade80", padding: "10px", borderRadius: "8px", marginBottom: "12px", fontSize: "12px", textAlign: "center" }}>✅ {customerMessage}</div>}
+            {customerAuthMode === "register" ? (
+              <form onSubmit={handleCustomerRegister}>
+                <input type="text" placeholder="Full Name *" value={customerForm.name} onChange={(e) => setCustomerForm({...customerForm, name: e.target.value})} style={{...inputStyle, marginBottom: "10px", fontSize: "14px", padding: "12px"}} />
+                <input type="text" placeholder="Phone Number * (e.g. 255712345678)" value={customerForm.phone} onChange={(e) => setCustomerForm({...customerForm, phone: e.target.value})} style={{...inputStyle, marginBottom: "10px", fontSize: "14px", padding: "12px"}} />
+                <input type="password" placeholder="Password * (min 4 chars)" value={customerForm.password} onChange={(e) => setCustomerForm({...customerForm, password: e.target.value})} style={{...inputStyle, marginBottom: "10px", fontSize: "14px", padding: "12px"}} />
+                <input type="password" placeholder="Confirm Password *" value={customerForm.confirmPassword} onChange={(e) => setCustomerForm({...customerForm, confirmPassword: e.target.value})} style={{...inputStyle, marginBottom: "14px", fontSize: "14px", padding: "12px"}} />
+                <button type="submit" style={{ ...btn("linear-gradient(to right, #22c55e, #16a34a)"), padding: "14px", fontSize: "15px" }}>📝 Create Account</button>
+              </form>
+            ) : (
+              <form onSubmit={handleCustomerLogin}>
+                <input type="text" placeholder="Phone Number" value={customerForm.phone} onChange={(e) => setCustomerForm({...customerForm, phone: e.target.value})} style={{...inputStyle, marginBottom: "10px", fontSize: "14px", padding: "12px"}} />
+                <input type="password" placeholder="Password" value={customerForm.password} onChange={(e) => setCustomerForm({...customerForm, password: e.target.value})} style={{...inputStyle, marginBottom: "14px", fontSize: "14px", padding: "12px"}} />
+                <button type="submit" style={{ ...btn("linear-gradient(to right, #3b82f6, #8b5cf6)"), padding: "14px", fontSize: "15px" }}>🔓 Login</button>
+              </form>
+            )}
+            <button onClick={() => { setShowCustomerAuth(false); setCustomerError(""); setCustomerMessage("") }} style={{ display: "block", margin: "12px auto 0", background: "none", border: "none", color: "#94a3b8", cursor: "pointer", fontSize: "11px" }}>✕ Close</button>
+          </div>
+        </div>
+      )}
+
       {/* CUSTOMER PROFILE MODAL */}
       {showCustomerProfile && loggedInCustomer && (
         <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.8)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 2000, padding: "20px" }}>
@@ -345,30 +292,17 @@ export default function App() {
             <h3 style={{ textAlign: "center", marginBottom: "12px", fontSize: "16px" }}>👤 My Profile</h3>
             {customerProfileMsg && <div style={{ background: customerProfileMsg.startsWith("✅") ? "rgba(34,197,94,0.1)" : "rgba(239,68,68,0.1)", color: customerProfileMsg.startsWith("✅") ? "#4ade80" : "#f87171", padding: "8px", borderRadius: "8px", marginBottom: "10px", fontSize: "11px", textAlign: "center" }}>{customerProfileMsg}</div>}
             <form onSubmit={handleCustomerProfileUpdate}>
-              <label style={{ fontSize: "10px", color: "#94a3b8" }}>Name</label>
-              <input type="text" value={customerProfileForm.name} onChange={(e) => setCustomerProfileForm({...customerProfileForm, name: e.target.value})} style={{...inputStyle, marginBottom: "8px"}} />
-              <label style={{ fontSize: "10px", color: "#94a3b8" }}>Phone</label>
-              <input type="text" value={customerProfileForm.phone} onChange={(e) => setCustomerProfileForm({...customerProfileForm, phone: e.target.value})} style={{...inputStyle, marginBottom: "12px"}} />
+              <label style={{ fontSize: "10px", color: "#94a3b8" }}>Name</label><input type="text" value={customerProfileForm.name} onChange={(e) => setCustomerProfileForm({...customerProfileForm, name: e.target.value})} style={{...inputStyle, marginBottom: "8px"}} />
+              <label style={{ fontSize: "10px", color: "#94a3b8" }}>Phone</label><input type="text" value={customerProfileForm.phone} onChange={(e) => setCustomerProfileForm({...customerProfileForm, phone: e.target.value})} style={{...inputStyle, marginBottom: "12px"}} />
               <hr style={{ borderColor: "rgba(255,255,255,0.06)", margin: "10px 0" }} />
-              <label style={{ fontSize: "10px", color: "#fbbf24" }}>🔐 Current Password *</label>
-              <input type="password" placeholder="Required to save changes" value={customerProfileForm.currentPassword} onChange={(e) => setCustomerProfileForm({...customerProfileForm, currentPassword: e.target.value})} style={{...inputStyle, marginBottom: "8px"}} />
-              <label style={{ fontSize: "10px", color: "#94a3b8" }}>New Password (optional)</label>
-              <input type="password" placeholder="Leave blank to keep" value={customerProfileForm.newPassword} onChange={(e) => setCustomerProfileForm({...customerProfileForm, newPassword: e.target.value})} style={{...inputStyle, marginBottom: "8px"}} />
-              <label style={{ fontSize: "10px", color: "#94a3b8" }}>Confirm New Password</label>
-              <input type="password" placeholder="Confirm" value={customerProfileForm.confirmNewPassword} onChange={(e) => setCustomerProfileForm({...customerProfileForm, confirmNewPassword: e.target.value})} style={{...inputStyle, marginBottom: "12px"}} />
+              <label style={{ fontSize: "10px", color: "#fbbf24" }}>🔐 Current Password *</label><input type="password" placeholder="Required to save" value={customerProfileForm.currentPassword} onChange={(e) => setCustomerProfileForm({...customerProfileForm, currentPassword: e.target.value})} style={{...inputStyle, marginBottom: "8px"}} />
+              <label style={{ fontSize: "10px", color: "#94a3b8" }}>New Password (optional)</label><input type="password" placeholder="Leave blank" value={customerProfileForm.newPassword} onChange={(e) => setCustomerProfileForm({...customerProfileForm, newPassword: e.target.value})} style={{...inputStyle, marginBottom: "8px"}} />
+              <label style={{ fontSize: "10px", color: "#94a3b8" }}>Confirm New Password</label><input type="password" placeholder="Confirm" value={customerProfileForm.confirmNewPassword} onChange={(e) => setCustomerProfileForm({...customerProfileForm, confirmNewPassword: e.target.value})} style={{...inputStyle, marginBottom: "12px"}} />
               <button type="submit" style={btn("linear-gradient(to right, #3b82f6, #8b5cf6)")}>💾 Save Profile</button>
             </form>
-            {/* Customer Order History */}
             <div style={{ marginTop: "16px", borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: "12px" }}>
               <h4 style={{ fontSize: "13px", marginBottom: "8px" }}>📦 My Orders ({getCustomerLeads().length})</h4>
-              {getCustomerLeads().length === 0 ? <p style={{ color: "#64748b", fontSize: "10px", textAlign: "center" }}>No orders yet</p> :
-                getCustomerLeads().map(l => (
-                  <div key={l.id} style={{ background: "rgba(255,255,255,0.03)", padding: "8px", borderRadius: "6px", marginBottom: "4px", fontSize: "10px", display: "flex", justifyContent: "space-between" }}>
-                    <div><strong>{l.product_name}</strong><div style={{ color: "#94a3b8" }}>🏪 {l.shop_name}</div></div>
-                    <span style={{ fontSize: "8px", padding: "2px 6px", borderRadius: "8px", background: l.status === "New" ? "rgba(59,130,246,0.2)" : "rgba(34,197,94,0.2)", color: l.status === "New" ? "#60a5fa" : "#4ade80" }}>{l.status}</span>
-                  </div>
-                ))
-              }
+              {getCustomerLeads().length === 0 ? <p style={{ color: "#64748b", fontSize: "10px", textAlign: "center" }}>No orders yet</p> : getCustomerLeads().map(l => (<div key={l.id} style={{ background: "rgba(255,255,255,0.03)", padding: "8px", borderRadius: "6px", marginBottom: "4px", fontSize: "10px", display: "flex", justifyContent: "space-between" }}><div><strong>{l.product_name}</strong><div style={{ color: "#94a3b8" }}>🏪 {l.shop_name}</div></div><span style={{ fontSize: "8px", padding: "2px 6px", borderRadius: "8px", background: l.status==="New"?"rgba(59,130,246,0.2)":"rgba(34,197,94,0.2)", color: l.status==="New"?"#60a5fa":"#4ade80" }}>{l.status}</span></div>))}
             </div>
             <button onClick={() => setShowCustomerProfile(false)} style={{ display: "block", margin: "10px auto 0", background: "none", border: "none", color: "#64748b", cursor: "pointer", fontSize: "10px" }}>✕ Close</button>
           </div>
@@ -379,53 +313,19 @@ export default function App() {
       {showShopRegister && (
         <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.8)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 2000, padding: "20px" }}>
           <div style={{ background: "#1e293b", padding: isMobile ? "16px" : "24px", borderRadius: "16px", maxWidth: "550px", width: "100%", maxHeight: "90vh", overflowY: "auto" }}>
-            <div style={{ textAlign: "center", marginBottom: "14px" }}><div style={{ fontSize: "30px" }}>🏪</div><h2 style={{ fontSize: "17px", margin: "0" }}>Register Your Shop</h2><p style={{ color: "#94a3b8", fontSize: "10px", marginTop: "4px" }}>Fill in shop details. Admin will approve.</p></div>
+            <div style={{ textAlign: "center", marginBottom: "14px" }}><div style={{ fontSize: "30px" }}>🏪</div><h2 style={{ fontSize: "17px", margin: "0" }}>Register Your Shop</h2><p style={{ color: "#94a3b8", fontSize: "10px" }}>Admin will approve your shop.</p></div>
             {shopRegError && <div style={{ background: "rgba(239,68,68,0.1)", color: "#f87171", padding: "8px", borderRadius: "8px", marginBottom: "10px", fontSize: "11px", textAlign: "center" }}>{shopRegError}</div>}
             {shopRegMessage && <div style={{ background: "rgba(34,197,94,0.1)", color: "#4ade80", padding: "8px", borderRadius: "8px", marginBottom: "10px", fontSize: "11px", textAlign: "center" }}>{shopRegMessage}</div>}
             <form onSubmit={handleShopRegister} style={{ display: "grid", gap: "8px" }}>
               <input type="text" placeholder="Shop Name *" value={shopRegForm.name} onChange={(e) => setShopRegForm({...shopRegForm, name: e.target.value})} style={inputStyle} />
               <select value={shopRegForm.category} onChange={(e) => setShopRegForm({...shopRegForm, category: e.target.value})} style={{...inputStyle, background: "#1e293b"}}>{categories.filter(c=>c!=="All").map(c=><option key={c} value={c}>{c}</option>)}</select>
               <input type="text" placeholder="Phone (WhatsApp) *" value={shopRegForm.phone} onChange={(e) => setShopRegForm({...shopRegForm, phone: e.target.value})} style={inputStyle} />
-              <input type="text" placeholder="Email (optional)" value={shopRegForm.email} onChange={(e) => setShopRegForm({...shopRegForm, email: e.target.value})} style={inputStyle} />
               <input type="text" placeholder="Location" value={shopRegForm.location} onChange={(e) => setShopRegForm({...shopRegForm, location: e.target.value})} style={inputStyle} />
-              <input type="text" placeholder="Working Hours" value={shopRegForm.working_hours} onChange={(e) => setShopRegForm({...shopRegForm, working_hours: e.target.value})} style={inputStyle} />
-              <textarea placeholder="Description (optional)" value={shopRegForm.description} onChange={(e) => setShopRegForm({...shopRegForm, description: e.target.value})} style={{...inputStyle, minHeight: "50px"}} />
               <input type="password" placeholder="Password *" value={shopRegForm.password} onChange={(e) => setShopRegForm({...shopRegForm, password: e.target.value})} style={inputStyle} />
               <input type="password" placeholder="Confirm Password *" value={shopRegForm.confirmPassword} onChange={(e) => setShopRegForm({...shopRegForm, confirmPassword: e.target.value})} style={inputStyle} />
-              <div><label style={{ fontSize: "10px", color: "#94a3b8" }}>Logo (optional)</label><input type="file" accept="image/*" onChange={(e) => setShopRegForm({...shopRegForm, logoFile: e.target.files[0]})} style={inputStyle} /></div>
               <button type="submit" style={btn("linear-gradient(to right, #22c55e, #16a34a)")}>📝 Register Shop</button>
             </form>
             <button onClick={() => setShowShopRegister(false)} style={{ display: "block", margin: "10px auto 0", background: "none", border: "none", color: "#64748b", cursor: "pointer", fontSize: "10px" }}>✕ Close</button>
-          </div>
-        </div>
-      )}
-
-      {/* CUSTOMER AUTH MODAL */}
-      {showCustomerAuth && (
-        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.8)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 2000, padding: "20px" }}>
-          <div style={{ background: "#1e293b", padding: isMobile ? "20px" : "30px", borderRadius: "16px", maxWidth: "420px", width: "100%" }}>
-            <div style={{ textAlign: "center", marginBottom: "16px" }}><div style={{ fontSize: "35px" }}>{customerAuthMode === "login" ? "👤" : "✨"}</div><h2 style={{ fontSize: "18px", margin: "0" }}>{customerAuthMode === "login" ? "Welcome Back!" : "Create Account"}</h2></div>
-            {customerError && <div style={{ background: "rgba(239,68,68,0.1)", color: "#f87171", padding: "8px", borderRadius: "8px", marginBottom: "10px", fontSize: "11px", textAlign: "center" }}>{customerError}</div>}
-            {customerMessage && <div style={{ background: "rgba(34,197,94,0.1)", color: "#4ade80", padding: "8px", borderRadius: "8px", marginBottom: "10px", fontSize: "11px", textAlign: "center" }}>{customerMessage}</div>}
-            {customerAuthMode === "register" ? (
-              <form onSubmit={handleCustomerRegister}>
-                <input type="text" placeholder="Full Name *" value={customerForm.name} onChange={(e) => setCustomerForm({...customerForm, name: e.target.value})} style={{...inputStyle, marginBottom: "8px"}} />
-                <input type="text" placeholder="Phone *" value={customerForm.phone} onChange={(e) => setCustomerForm({...customerForm, phone: e.target.value})} style={{...inputStyle, marginBottom: "8px"}} />
-                <input type="password" placeholder="Password *" value={customerForm.password} onChange={(e) => setCustomerForm({...customerForm, password: e.target.value})} style={{...inputStyle, marginBottom: "8px"}} />
-                <input type="password" placeholder="Confirm Password *" value={customerForm.confirmPassword} onChange={(e) => setCustomerForm({...customerForm, confirmPassword: e.target.value})} style={{...inputStyle, marginBottom: "12px"}} />
-                <button type="submit" style={btn("linear-gradient(to right, #3b82f6, #8b5cf6)")}>📝 Register</button>
-              </form>
-            ) : (
-              <form onSubmit={handleCustomerLogin}>
-                <input type="text" placeholder="Phone number" value={customerForm.phone} onChange={(e) => setCustomerForm({...customerForm, phone: e.target.value})} style={{...inputStyle, marginBottom: "8px"}} />
-                <input type="password" placeholder="Password" value={customerForm.password} onChange={(e) => setCustomerForm({...customerForm, password: e.target.value})} style={{...inputStyle, marginBottom: "12px"}} />
-                <button type="submit" style={btn("linear-gradient(to right, #22c55e, #16a34a)")}>🔓 Login</button>
-              </form>
-            )}
-            <div style={{ textAlign: "center", marginTop: "12px" }}>
-              <button onClick={() => { setCustomerAuthMode(customerAuthMode === "login" ? "register" : "login"); setCustomerError(""); setCustomerMessage("") }} style={{ background: "none", border: "none", color: "#38bdf8", cursor: "pointer", fontSize: "11px", fontWeight: "bold" }}>{customerAuthMode === "login" ? "👈 Register" : "👈 Login"}</button>
-            </div>
-            <button onClick={() => setShowCustomerAuth(false)} style={{ display: "block", margin: "8px auto 0", background: "none", border: "none", color: "#64748b", cursor: "pointer", fontSize: "10px" }}>✕ Close</button>
           </div>
         </div>
       )}
@@ -467,11 +367,7 @@ export default function App() {
           <button onClick={() => navigateTo("shops")} style={{ ...btn("rgba(255,255,255,0.1)"), width: "auto", marginBottom: "10px", padding: "6px 14px", fontSize: "11px" }}>⬅ Back</button>
           <div style={{ background: "linear-gradient(135deg, #1e3a5f, #2d1b69)", borderRadius: "12px", padding: isMobile ? "12px" : "18px", marginBottom: "12px", display: "flex", alignItems: "center", gap: "10px" }}>
             {selectedShop.logo && selectedShop.logo.startsWith("http") ? <img src={selectedShop.logo} alt={selectedShop.name} style={{ width: "45px", height: "45px", borderRadius: "10px", objectFit: "cover" }} /> : <div style={{ width: "45px", height: "45px", borderRadius: "10px", background: "linear-gradient(135deg, #3b82f6, #8b5cf6)", display: "flex", justifyContent: "center", alignItems: "center", fontSize: "22px" }}>{selectedShop.logo || "🏪"}</div>}
-            <div><h1 style={{ fontSize: isMobile ? "15px" : "20px", margin: 0 }}>{selectedShop.name}</h1><span style={{ fontSize: "9px", background: "rgba(56,189,248,0.2)", color: "#38bdf8", padding: "2px 7px", borderRadius: "8px" }}>{selectedShop.category}</span><div style={{ fontSize: "9px", color: "#94a3b8", marginTop: "2px" }}>⭐ {selectedShop.rating} • 📦 {dbProducts.filter(p => p.shop === selectedShop.name).length}</div></div>
-          </div>
-          <div style={{ background: "rgba(255,255,255,0.05)", padding: "12px", borderRadius: "10px", marginBottom: "12px", fontSize: "11px", color: "#cbd5e1" }}>
-            <p style={{ margin: "0 0 4px 0" }}>📍 {selectedShop.location}</p><p style={{ margin: 0 }}>🕐 {selectedShop.working_hours}</p>
-            {isCustomer || isAdmin || loggedInShop ? (<div style={{ marginTop: "8px", padding: "8px", background: "rgba(34,197,94,0.1)", borderRadius: "8px" }}><p style={{ margin: "0 0 4px 0" }}>📞 {selectedShop.phone}</p><p style={{ margin: 0 }}>📧 {selectedShop.email}</p><button onClick={() => { trackWhatsAppClick(selectedShop.name); window.open(`https://wa.me/${getShopWhatsApp(selectedShop.name)}?text=Hello ${selectedShop.name}`, "_blank") }} style={{ ...btn("linear-gradient(to right, #22c55e, #16a34a)"), marginTop: "6px", padding: "6px", fontSize: "10px" }}>💬 Chat on WhatsApp</button></div>) : (<div style={{ marginTop: "8px", padding: "8px", background: "rgba(59,130,246,0.1)", borderRadius: "8px", textAlign: "center" }}><p style={{ margin: "0 0 6px 0", fontSize: "10px" }}>🔒 Login to see contacts</p><button onClick={() => { setShowCustomerAuth(true); setCustomerAuthMode("login") }} style={{ ...btn("linear-gradient(to right, #3b82f6, #8b5cf6)"), padding: "6px", fontSize: "10px" }}>👤 Login / Register</button></div>)}
+            <div><h1 style={{ fontSize: isMobile ? "15px" : "20px", margin: 0 }}>{selectedShop.name}</h1><span style={{ fontSize: "9px", background: "rgba(56,189,248,0.2)", color: "#38bdf8", padding: "2px 7px", borderRadius: "8px" }}>{selectedShop.category}</span></div>
           </div>
           <h2 style={{ fontSize: isMobile ? "12px" : "15px", marginBottom: "6px" }}>📦 Products ({dbProducts.filter(p => p.shop === selectedShop.name).length})</h2>
           <div style={compactGrid}>{dbProducts.filter(p => p.shop === selectedShop.name).map(product => (<div key={product.id} style={{ background: "rgba(255,255,255,0.04)", borderRadius: "10px", overflow: "hidden" }}><div style={{ height: isMobile ? "90px" : "120px", overflow: "hidden", cursor: "pointer" }} onClick={() => { setSelectedProduct(product); trackProductView(product); navigateTo("productDetails") }}><img src={product.image} alt={product.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} /></div><div style={{ padding: "7px" }}><h3 style={{ fontSize: "10px", margin: "2px 0" }}>{product.name.length > 18 ? product.name.substring(0,18)+'...' : product.name}</h3><p style={{ color: "#38bdf8", fontWeight: "bold", fontSize: "10px", margin: "2px 0" }}>{product.price}</p><button onClick={() => addToCartDirect(product, selectedShop.name)} style={{ ...btn("linear-gradient(to right, #3b82f6, #8b5cf6)"), padding: "4px", fontSize: "9px" }}>🛒 Add</button></div></div>))}</div>
@@ -505,90 +401,63 @@ export default function App() {
               <div style={{ background: "rgba(30,41,59,0.8)", padding: "20px", borderRadius: "16px" }}>
                 <div style={{ textAlign: "center", marginBottom: "14px" }}><div style={{ fontSize: "28px" }}>🔐</div><h2 style={{ fontSize: "18px", margin: "4px 0" }}>{isAdminMode ? "Admin Access" : "Shop Login"}</h2></div>
                 {isAdminMode ? (<form onSubmit={handleAdminLogin}>{loginError && <div style={{ background: "rgba(239,68,68,0.1)", color: "#f87171", padding: "6px", borderRadius: "6px", marginBottom: "6px", fontSize: "10px", textAlign: "center" }}>{loginError}</div>}<input type="email" placeholder="Email" value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)} style={{ ...inputStyle, marginBottom: "6px" }} /><input type="password" placeholder="Password" value={loginAdminPassword} onChange={(e) => setLoginAdminPassword(e.target.value)} style={{ ...inputStyle, marginBottom: "10px" }} /><button type="submit" style={btn("linear-gradient(to right, #dc2626, #ef4444)")}>Login 🔑</button></form>) : (<form onSubmit={handleLogin}>{loginError && <div style={{ background: "rgba(239,68,68,0.1)", color: "#f87171", padding: "6px", borderRadius: "6px", marginBottom: "6px", fontSize: "10px" }}>{loginError}</div>}<div style={{ marginBottom: "6px" }}><label style={{ color: "#94a3b8", fontSize: "11px" }}>Shop Name</label><input type="text" placeholder="Enter shop name..." value={loginShopName} onChange={(e) => setLoginShopName(e.target.value)} style={inputStyle} /></div><div style={{ marginBottom: "10px" }}><label style={{ color: "#94a3b8", fontSize: "11px" }}>Password</label><input type="password" placeholder="••••••••" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} style={inputStyle} /></div><button type="submit" style={btn("linear-gradient(to right, #3b82f6, #8b5cf6)")}>Login 📊</button></form>)}
-                <div style={{ textAlign: "center", marginTop: "14px", borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: "14px" }}><p style={{ color: "#94a3b8", fontSize: "11px", marginBottom: "6px" }}>Don't have a shop yet?</p><button onClick={() => { setShowShopRegister(true); setPage("dashboard") }} style={{ ...btn("linear-gradient(to right, #22c55e, #16a34a)"), padding: "10px", fontSize: "12px" }}>🏪 Register Your Shop</button></div>
+                <div style={{ textAlign: "center", marginTop: "14px", borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: "14px" }}><p style={{ color: "#94a3b8", fontSize: "11px", marginBottom: "6px" }}>Don't have a shop yet?</p><button onClick={() => { setShowShopRegister(true) }} style={{ ...btn("linear-gradient(to right, #22c55e, #16a34a)"), padding: "10px", fontSize: "12px" }}>🏪 Register Your Shop</button></div>
               </div>
             </div>
           ) : isAdmin ? (
             <div style={{ maxWidth: "900px", margin: "0 auto" }}>
-              <div style={{ background: "linear-gradient(135deg, #1e1e3f, #2d1b4e)", borderRadius: "12px", padding: "14px", marginBottom: "10px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px" }}><div style={{ display: "flex", alignItems: "center", gap: "10px" }}><span style={{ fontSize: "24px" }}>🛡️</span><div><strong style={{ fontSize: "15px" }}>Baizona Admin</strong><p style={{ margin: 0, fontSize: "10px", color: "#94a3b8" }}>{adminStats.totalShops} shops • {adminStats.pendingShops} pending</p></div></div><button onClick={handleLogout} style={{ padding: "6px 12px", borderRadius: "8px", background: "rgba(239,68,68,0.2)", color: "#f87171", border: "none", cursor: "pointer", fontSize: "10px", fontWeight: "bold" }}>🚪 Logout</button></div>
-              <div style={{ display: "flex", gap: "6px", marginBottom: "14px", flexWrap: "wrap" }}>{[{ id: "overview", icon: "📈", label: "Overview" },{ id: "pending", icon: "⏳", label: `Pending (${adminStats.pendingShops})` },{ id: "addShop", icon: "🏪", label: "+ Add Shop" },{ id: "manageShops", icon: "⚙️", label: "All Shops" },{ id: "products", icon: "📦", label: "Products" },{ id: "leads", icon: "📨", label: "Leads" },{ id: "customers", icon: "👥", label: `Customers (${adminStats.totalCustomers})` }].map(tab => (<button key={tab.id} onClick={() => setAdminTab(tab.id)} style={{ padding: "8px 14px", borderRadius: "8px", fontSize: "10px", fontWeight: "bold", cursor: "pointer", border: "none", background: adminTab === tab.id ? "#3b82f6" : "rgba(255,255,255,0.06)", color: "white", whiteSpace: "nowrap" }}>{tab.icon} {tab.label}</button>))}</div>
-              {adminMessage && <div style={{ background: adminMessage.startsWith("✅") ? "rgba(34,197,94,0.15)" : "rgba(239,68,68,0.15)", color: adminMessage.startsWith("✅") ? "#4ade80" : "#f87171", padding: "10px", borderRadius: "8px", marginBottom: "10px", fontSize: "12px", textAlign: "center" }}>{adminMessage}</div>}
-              {adminTab === "overview" && (<div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(4, 1fr)", gap: "8px" }}>{[{ icon: "🏪", label: "Shops", value: adminStats.totalShops, color: "#3b82f6" },{ icon: "⏳", label: "Pending", value: adminStats.pendingShops, color: "#fbbf24" },{ icon: "📦", label: "Products", value: adminStats.totalProducts, color: "#22c55e" },{ icon: "👥", label: "Customers", value: adminStats.totalCustomers, color: "#a78bfa" },{ icon: "👁️", label: "Views", value: adminStats.totalViews, color: "#38bdf8" },{ icon: "💬", label: "WA Clicks", value: adminStats.totalWhatsappClicks, color: "#34d399" },{ icon: "🛒", label: "Cart", value: adminStats.totalCartAdditions, color: "#f472b6" },{ icon: "📨", label: "Leads", value: adminStats.totalLeads, color: "#fbbf24" }].map((s, i) => (<div key={i} style={{ background: "rgba(255,255,255,0.04)", padding: "14px", borderRadius: "10px", textAlign: "center" }}><div style={{ fontSize: "20px" }}>{s.icon}</div><div style={{ fontSize: "18px", fontWeight: "bold", color: s.color }}>{s.value}</div><div style={{ fontSize: "9px", color: "#94a3b8" }}>{s.label}</div></div>))}</div>)}
-              {adminTab === "pending" && (<div><h3 style={{ fontSize: "14px", marginBottom: "10px" }}>⏳ Pending Approvals</h3>{dbShops.filter(s => s.status === 'pending').map((shop, i) => (<div key={i} style={{ background: "rgba(255,255,255,0.04)", padding: "14px", borderRadius: "10px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px", marginBottom: "8px" }}><div><strong>{shop.logo||"🏪"} {shop.name}</strong><div style={{ fontSize: "10px", color: "#94a3b8" }}>{shop.category} | 📞 {shop.phone}</div></div><div style={{ display: "flex", gap: "6px" }}><button onClick={() => handleApproveShop(shop)} style={{ background: "#22c55e", color: "white", border: "none", padding: "6px 14px", borderRadius: "6px", cursor: "pointer", fontWeight: "bold", fontSize: "10px" }}>✅ Approve</button><button onClick={() => handleRejectShop(shop)} style={{ background: "#ef4444", color: "white", border: "none", padding: "6px 14px", borderRadius: "6px", cursor: "pointer", fontWeight: "bold", fontSize: "10px" }}>❌ Reject</button></div></div>))}</div>)}
+              <div style={{ background: "linear-gradient(135deg, #1e1e3f, #2d1b4e)", borderRadius: "12px", padding: "14px", marginBottom: "10px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px" }}><div><strong style={{ fontSize: "15px" }}>🛡️ Baizona Admin</strong><p style={{ margin: 0, fontSize: "10px", color: "#94a3b8" }}>{adminStats.totalShops} shops • {adminStats.pendingShops} pending</p></div><button onClick={handleLogout} style={{ padding: "6px 12px", borderRadius: "8px", background: "rgba(239,68,68,0.2)", color: "#f87171", border: "none", cursor: "pointer", fontSize: "10px", fontWeight: "bold" }}>🚪 Logout</button></div>
+              <div style={{ display: "flex", gap: "6px", marginBottom: "14px", flexWrap: "wrap" }}>{[{ id: "overview", label: "📈 Overview" },{ id: "pending", label: `⏳ Pending (${adminStats.pendingShops})` },{ id: "leads", label: "📨 Leads" },{ id: "customers", label: `👥 Customers (${adminStats.totalCustomers})` }].map(tab => (<button key={tab.id} onClick={() => setAdminTab(tab.id)} style={{ padding: "8px 14px", borderRadius: "8px", fontSize: "10px", fontWeight: "bold", cursor: "pointer", border: "none", background: adminTab === tab.id ? "#3b82f6" : "rgba(255,255,255,0.06)", color: "white", whiteSpace: "nowrap" }}>{tab.label}</button>))}</div>
+              {adminMessage && <div style={{ background: adminMessage.startsWith("✅")?"rgba(34,197,94,0.15)":"rgba(239,68,68,0.15)", color: adminMessage.startsWith("✅")?"#4ade80":"#f87171", padding: "10px", borderRadius: "8px", marginBottom: "10px", fontSize: "12px", textAlign: "center" }}>{adminMessage}</div>}
+              {adminTab === "overview" && <div style={{ display: "grid", gridTemplateColumns: isMobile?"repeat(2,1fr)":"repeat(4,1fr)", gap: "8px" }}>{[{ icon: "🏪", v: adminStats.totalShops, c: "#3b82f6" },{ icon: "⏳", v: adminStats.pendingShops, c: "#fbbf24" },{ icon: "📦", v: adminStats.totalProducts, c: "#22c55e" },{ icon: "👥", v: adminStats.totalCustomers, c: "#a78bfa" },{ icon: "👁️", v: adminStats.totalViews, c: "#38bdf8" },{ icon: "💬", v: adminStats.totalWhatsappClicks, c: "#34d399" },{ icon: "🛒", v: adminStats.totalCartAdditions, c: "#f472b6" },{ icon: "📨", v: adminStats.totalLeads, c: "#fbbf24" }].map((s,i)=>(<div key={i} style={{ background: "rgba(255,255,255,0.04)", padding: "14px", borderRadius: "10px", textAlign: "center" }}><div style={{ fontSize: "20px" }}>{s.icon}</div><div style={{ fontSize: "18px", fontWeight: "bold", color: s.c }}>{s.v}</div></div>))}</div>}
+              {adminTab === "pending" && <div>{dbShops.filter(s=>s.status==='pending').map((shop,i)=>(<div key={i} style={{ background: "rgba(255,255,255,0.04)", padding: "14px", borderRadius: "10px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px", marginBottom: "8px" }}><div><strong>{shop.logo||"🏪"} {shop.name}</strong><div style={{ fontSize: "10px", color: "#94a3b8" }}>{shop.category} | 📞 {shop.phone}</div></div><div style={{ display: "flex", gap: "6px" }}><button onClick={()=>handleApproveShop(shop)} style={{ background: "#22c55e", color: "white", border: "none", padding: "6px 14px", borderRadius: "6px", cursor: "pointer", fontWeight: "bold", fontSize: "10px" }}>✅ Approve</button><button onClick={()=>handleRejectShop(shop)} style={{ background: "#ef4444", color: "white", border: "none", padding: "6px 14px", borderRadius: "6px", cursor: "pointer", fontWeight: "bold", fontSize: "10px" }}>❌ Reject</button></div></div>))}</div>}
             </div>
           ) : (
-            // SHOP OWNER DASHBOARD - IMPROVED
+            // SHOP OWNER DASHBOARD
             <>
               <div style={{ background: "linear-gradient(135deg, #1e3a5f, #2d1b69)", borderRadius: "10px", padding: "12px", marginBottom: "8px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px" }}>
-                <strong style={{ fontSize: "14px" }}>{loggedInShop?.logo && loggedInShop.logo.startsWith("http") ? <img src={loggedInShop.logo} style={{ width: "20px", height: "20px", borderRadius: "4px", verticalAlign: "middle", marginRight: "4px", objectFit: "cover" }} alt="" /> : loggedInShop?.logo} {loggedInShop?.name}</strong>
+                <strong style={{ fontSize: "14px" }}>{loggedInShop?.logo&&loggedInShop.logo.startsWith("http")?<img src={loggedInShop.logo} style={{ width: "20px", height: "20px", borderRadius: "4px", verticalAlign: "middle", marginRight: "4px", objectFit: "cover" }} alt="" />:loggedInShop?.logo} {loggedInShop?.name}</strong>
                 <div style={{ display: "flex", gap: "6px" }}>
-                  <button onClick={() => { setShowProfileSettings(true); setProfileForm({ owner_name: loggedInShop?.owner_name || "", phone: loggedInShop?.phone || "", email: loggedInShop?.email || "", current_password: "", new_password: "", confirm_password: "" }) }} style={{ ...btn("rgba(255,255,255,0.15)"), width: "auto", padding: "6px 12px", fontSize: "10px" }}>⚙️ Settings</button>
+                  <button onClick={() => { setShowProfileSettings(true); setProfileForm({ owner_name: loggedInShop?.owner_name||"", phone: loggedInShop?.phone||"", email: loggedInShop?.email||"", current_password: "", new_password: "", confirm_password: "" }) }} style={{ ...btn("rgba(255,255,255,0.15)"), width: "auto", padding: "6px 12px", fontSize: "10px" }}>⚙️ Settings</button>
                   <button onClick={handleLogout} style={{ ...btn("rgba(239,68,68,0.2)", "#f87171"), width: "auto", padding: "6px 12px", fontSize: "10px" }}>Logout</button>
                 </div>
               </div>
-
-              {/* Stats */}
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "6px", marginBottom: "8px" }}>
-                {[{ l: "Views", v: shopStats.totalViews },{ l: "WA Clicks", v: shopStats.whatsappClicks },{ l: "Cart", v: shopStats.cartAdditions },{ l: "Products", v: shopStats.totalProducts }].map((s, i) => (<div key={i} style={{ background: "rgba(255,255,255,0.04)", padding: "10px", borderRadius: "8px", textAlign: "center", fontSize: "10px" }}><strong style={{ fontSize: "13px" }}>{s.v}</strong><br />{s.l}</div>))}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: "6px", marginBottom: "8px" }}>
+                {[{ l: "Views", v: shopStats.totalViews },{ l: "WA", v: shopStats.whatsappClicks },{ l: "Cart", v: shopStats.cartAdditions },{ l: "Products", v: shopStats.totalProducts }].map((s,i)=>(<div key={i} style={{ background: "rgba(255,255,255,0.04)", padding: "10px", borderRadius: "8px", textAlign: "center", fontSize: "10px" }}><strong style={{ fontSize: "13px" }}>{s.v}</strong><br/>{s.l}</div>))}
               </div>
-
-              {/* Add Product */}
               <form onSubmit={handleAddProduct} style={{ background: "rgba(30,41,59,0.4)", padding: "10px", borderRadius: "10px", marginBottom: "8px" }}>
-                <h4 style={{ fontSize: "12px", marginBottom: "6px" }}>➕ Add Product</h4>
                 <input type="text" placeholder="Product Name" value={newProduct.name} onChange={(e) => setNewProduct({...newProduct, name: e.target.value})} style={{...inputStyle, marginBottom: "5px"}} />
                 <input type="text" placeholder="Price (Tsh)" value={newProduct.price} onChange={(e) => setNewProduct({...newProduct, price: e.target.value})} style={{...inputStyle, marginBottom: "5px"}} />
                 <input type="file" accept="image/*" onChange={(e) => setNewProduct({...newProduct, imageFile: e.target.files[0]})} style={{...inputStyle, marginBottom: "5px"}} />
-                <textarea placeholder="Description (optional)" value={newProduct.description} onChange={(e) => setNewProduct({...newProduct, description: e.target.value})} style={{...inputStyle, marginBottom: "5px", minHeight: "40px"}} />
                 <button type="submit" style={btn("linear-gradient(to right, #22c55e, #16a34a)")}>➕ Add Product</button>
               </form>
-
-              {/* My Products */}
               <div style={{ background: "rgba(255,255,255,0.03)", padding: "10px", borderRadius: "10px", marginBottom: "8px" }}>
-                <h4 style={{ fontSize: "12px", marginBottom: "6px" }}>📦 My Products ({dbProducts.filter(p => p.shop === loggedInShop?.name).length})</h4>
-                <div style={{ maxHeight: "200px", overflowY: "auto" }}>
-                  {dbProducts.filter(p => p.shop === loggedInShop?.name).map(prod => (
-                    <div key={prod.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: "1px solid rgba(255,255,255,0.03)", fontSize: "10px" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: "6px" }}><img src={prod.image} style={{ width: "24px", height: "24px", borderRadius: "4px", objectFit: "cover" }} alt="" /><span>{prod.name} - <span style={{ color: "#38bdf8" }}>{prod.price}</span></span></div>
-                      <button onClick={() => handleDeleteProduct(prod.id)} style={{ background: "none", border: "none", color: "#f87171", cursor: "pointer", fontSize: "12px" }}>🗑️</button>
-                    </div>
-                  ))}
-                </div>
+                <h4 style={{ fontSize: "12px", marginBottom: "6px" }}>📦 My Products ({dbProducts.filter(p=>p.shop===loggedInShop?.name).length})</h4>
+                {dbProducts.filter(p=>p.shop===loggedInShop?.name).map(prod=>(<div key={prod.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0", borderBottom: "1px solid rgba(255,255,255,0.03)", fontSize: "10px" }}><span>{prod.name} - <span style={{ color: "#38bdf8" }}>{prod.price}</span></span><button onClick={()=>handleDeleteProduct(prod.id)} style={{ background: "none", border: "none", color: "#f87171", cursor: "pointer", fontSize: "12px" }}>🗑️</button></div>))}
               </div>
-
-              {/* My Leads */}
               <div style={{ background: "rgba(255,255,255,0.03)", padding: "10px", borderRadius: "10px" }}>
                 <h4 style={{ fontSize: "12px", marginBottom: "6px" }}>📨 My Leads ({getShopLeads(loggedInShop?.name).length})</h4>
-                <div style={{ maxHeight: "200px", overflowY: "auto" }}>
-                  {getShopLeads(loggedInShop?.name).length === 0 ? <p style={{ color: "#64748b", fontSize: "10px", textAlign: "center" }}>No leads yet</p> :
-                    getShopLeads(loggedInShop?.name).map(lead => (
-                      <div key={lead.id} style={{ padding: "6px 0", borderBottom: "1px solid rgba(255,255,255,0.03)", fontSize: "10px" }}>
-                        <strong>{lead.product_name}</strong>
-                        <span style={{ fontSize: "8px", marginLeft: "6px", padding: "2px 6px", borderRadius: "8px", background: lead.status === "New" ? "rgba(59,130,246,0.2)" : "rgba(34,197,94,0.2)", color: lead.status === "New" ? "#60a5fa" : "#4ade80" }}>{lead.status}</span>
-                        <div style={{ color: "#94a3b8", fontSize: "9px" }}>{lead.customer_action}</div>
-                      </div>
-                    ))
-                  }
-                </div>
+                {getShopLeads(loggedInShop?.name).length===0?<p style={{ color: "#64748b", fontSize: "10px", textAlign: "center" }}>No leads yet</p>:getShopLeads(loggedInShop?.name).map(lead=>(<div key={lead.id} style={{ padding: "4px 0", borderBottom: "1px solid rgba(255,255,255,0.03)", fontSize: "10px" }}><strong>{lead.product_name}</strong><span style={{ fontSize: "8px", marginLeft: "6px", padding: "2px 6px", borderRadius: "8px", background: lead.status==="New"?"rgba(59,130,246,0.2)":"rgba(34,197,94,0.2)", color: lead.status==="New"?"#60a5fa":"#4ade80" }}>{lead.status}</span><div style={{ color: "#94a3b8", fontSize: "9px" }}>{lead.customer_action}</div></div>))}
               </div>
 
-              {/* Shop Settings Modal */}
+              {/* SHOP SETTINGS MODAL */}
               {showProfileSettings && (
                 <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.8)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 2000, padding: "20px" }}>
                   <div style={{ background: "#1e293b", padding: "20px", borderRadius: "16px", maxWidth: "450px", width: "100%", maxHeight: "90vh", overflowY: "auto" }}>
                     <h3 style={{ textAlign: "center", marginBottom: "12px", fontSize: "16px" }}>⚙️ Shop Settings</h3>
-                    {profileMessage && <div style={{ background: profileMessage.startsWith("✅") ? "rgba(34,197,94,0.1)" : "rgba(239,68,68,0.1)", color: profileMessage.startsWith("✅") ? "#4ade80" : "#f87171", padding: "8px", borderRadius: "8px", marginBottom: "10px", fontSize: "11px", textAlign: "center" }}>{profileMessage}</div>}
-                    <form onSubmit={async (e) => { e.preventDefault(); setProfileMessage(""); if (profileForm.current_password !== loggedInShop?.password) { setProfileMessage("❌ Current password wrong!"); return } if (profileForm.new_password && profileForm.new_password !== profileForm.confirm_password) { setProfileMessage("❌ New passwords don't match!"); return } const updateData = { phone: profileForm.phone, email: profileForm.email, owner_name: profileForm.owner_name }; if (profileForm.new_password) updateData.password = profileForm.new_password; const { error } = await supabase.from('shops').update(updateData).eq('id', loggedInShop.id); if (error) { setProfileMessage("❌ Failed: " + error.message) } else { setProfileMessage("✅ Settings saved!"); const { data } = await supabase.from('shops').select('*').eq('id', loggedInShop.id).single(); if (data) { setLoggedInShop(data); try { localStorage.setItem("baizona_auth", JSON.stringify({ shopName: data.name, password: data.password, isAdmin: false })) } catch {} } } }}>
-                      <label style={{ fontSize: "10px", color: "#94a3b8" }}>Shop Name</label><input type="text" value={loggedInShop?.name || ""} disabled style={{...inputStyle, opacity: 0.6, marginBottom: "8px"}} />
-                      <label style={{ fontSize: "10px", color: "#94a3b8" }}>Owner Name</label><input type="text" value={profileForm.owner_name} onChange={(e) => setProfileForm({...profileForm, owner_name: e.target.value})} style={{...inputStyle, marginBottom: "8px"}} />
-                      <label style={{ fontSize: "10px", color: "#94a3b8" }}>Phone</label><input type="text" value={profileForm.phone} onChange={(e) => setProfileForm({...profileForm, phone: e.target.value})} style={{...inputStyle, marginBottom: "8px"}} />
-                      <label style={{ fontSize: "10px", color: "#94a3b8" }}>Email</label><input type="email" value={profileForm.email} onChange={(e) => setProfileForm({...profileForm, email: e.target.value})} style={{...inputStyle, marginBottom: "12px"}} />
+                    {profileMessage && <div style={{ background: profileMessage.startsWith("✅")?"rgba(34,197,94,0.1)":"rgba(239,68,68,0.1)", color: profileMessage.startsWith("✅")?"#4ade80":"#f87171", padding: "8px", borderRadius: "8px", marginBottom: "10px", fontSize: "11px", textAlign: "center" }}>{profileMessage}</div>}
+                    <form onSubmit={async (e) => { e.preventDefault(); setProfileMessage(""); if(profileForm.current_password!==loggedInShop?.password){setProfileMessage("❌ Current password wrong!");return}; if(profileForm.new_password&&profileForm.new_password!==profileForm.confirm_password){setProfileMessage("❌ New passwords don't match!");return}; const u={phone:profileForm.phone,email:profileForm.email,owner_name:profileForm.owner_name}; if(profileForm.new_password)u.password=profileForm.new_password; const{error}=await supabase.from('shops').update(u).eq('id',loggedInShop.id); if(error){setProfileMessage("❌ Failed: "+error.message)}else{setProfileMessage("✅ Settings saved!");const{data}=await supabase.from('shops').select('*').eq('id',loggedInShop.id).single();if(data){setLoggedInShop(data);try{localStorage.setItem("baizona_auth",JSON.stringify({shopName:data.name,password:data.password,isAdmin:false}))}catch{}}} }}>
+                      <label style={{ fontSize: "10px", color: "#94a3b8" }}>Shop Name</label><input type="text" value={loggedInShop?.name||""} disabled style={{...inputStyle, opacity: 0.6, marginBottom: "8px"}} />
+                      <label style={{ fontSize: "10px", color: "#94a3b8" }}>Owner Name</label><input type="text" value={profileForm.owner_name} onChange={(e)=>setProfileForm({...profileForm,owner_name:e.target.value})} style={{...inputStyle, marginBottom: "8px"}} />
+                      <label style={{ fontSize: "10px", color: "#94a3b8" }}>Phone</label><input type="text" value={profileForm.phone} onChange={(e)=>setProfileForm({...profileForm,phone:e.target.value})} style={{...inputStyle, marginBottom: "8px"}} />
+                      <label style={{ fontSize: "10px", color: "#94a3b8" }}>Email</label><input type="email" value={profileForm.email} onChange={(e)=>setProfileForm({...profileForm,email:e.target.value})} style={{...inputStyle, marginBottom: "12px"}} />
                       <hr style={{ borderColor: "rgba(255,255,255,0.06)", margin: "10px 0" }} />
-                      <label style={{ fontSize: "10px", color: "#fbbf24" }}>🔐 Current Password *</label><input type="password" value={profileForm.current_password} onChange={(e) => setProfileForm({...profileForm, current_password: e.target.value})} style={{...inputStyle, marginBottom: "8px"}} />
-                      <label style={{ fontSize: "10px", color: "#94a3b8" }}>New Password</label><input type="password" value={profileForm.new_password} onChange={(e) => setProfileForm({...profileForm, new_password: e.target.value})} style={{...inputStyle, marginBottom: "8px"}} />
-                      <label style={{ fontSize: "10px", color: "#94a3b8" }}>Confirm New Password</label><input type="password" value={profileForm.confirm_password} onChange={(e) => setProfileForm({...profileForm, confirm_password: e.target.value})} style={{...inputStyle, marginBottom: "12px"}} />
+                      <label style={{ fontSize: "10px", color: "#fbbf24" }}>🔐 Current Password *</label><input type="password" value={profileForm.current_password} onChange={(e)=>setProfileForm({...profileForm,current_password:e.target.value})} style={{...inputStyle, marginBottom: "8px"}} />
+                      <label style={{ fontSize: "10px", color: "#94a3b8" }}>New Password</label><input type="password" value={profileForm.new_password} onChange={(e)=>setProfileForm({...profileForm,new_password:e.target.value})} style={{...inputStyle, marginBottom: "8px"}} />
+                      <label style={{ fontSize: "10px", color: "#94a3b8" }}>Confirm New Password</label><input type="password" value={profileForm.confirm_password} onChange={(e)=>setProfileForm({...profileForm,confirm_password:e.target.value})} style={{...inputStyle, marginBottom: "12px"}} />
                       <button type="submit" style={btn("linear-gradient(to right, #fbbf24, #f59e0b)", "black")}>💾 Save Settings</button>
                     </form>
-                    <button onClick={() => setShowProfileSettings(false)} style={{ display: "block", margin: "10px auto 0", background: "none", border: "none", color: "#64748b", cursor: "pointer", fontSize: "10px" }}>✕ Close</button>
+                    <button onClick={()=>setShowProfileSettings(false)} style={{ display: "block", margin: "10px auto 0", background: "none", border: "none", color: "#64748b", cursor: "pointer", fontSize: "10px" }}>✕ Close</button>
                   </div>
                 </div>
               )}
