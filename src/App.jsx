@@ -185,10 +185,57 @@ export default function App() {
   const handleUpdateShop = async (e) => { e.preventDefault();if(!editingShop?.name){alert("Jina linahitajika!");return};const{error}=await supabase.from('shops').update({name:editingShop.name,logo:editingShop.logo,category:editingShop.category,shop_type:editingShop.shopType,shopType:editingShop.shopType,description:editingShop.description,location:editingShop.location,phone:editingShop.phone,email:editingShop.email,working_hours:editingShop.working_hours,rating:editingShop.rating,password:editingShop.password,status:editingShop.status}).eq('id',editingShop.id);if(error){alert("Imefeli: "+error.message)}else{setEditingShop(null);fetchAllShops();alert("✅ Imehifadhiwa!")} }
   const handleDeleteShop = async (id,name) => { if(confirm(`Futa "${name}" KABISA?`)){try{await supabase.from('products').delete().eq('shop',name)}catch{};try{await supabase.from('leads').delete().eq('shop_name',name)}catch{};try{await supabase.from('analytics').delete().eq('shop_name',name)}catch{};const{error}=await supabase.from('shops').delete().eq('id',id);if(error){alert("Imefeli: "+error.message)}else{fetchAllShops();fetchProducts();fetchLeads();alert("✅ Imefutwa!");calculateAdminStats().then(s=>setAdminStats(s))}} }
   const handleDeleteProduct = async (pid) => { if(confirm("Futa bidhaa hii?")){await supabase.from('products').delete().eq('id',pid);fetchProducts();calculateAdminStats().then(s=>setAdminStats(s))} }
-  const handleAddProduct = async (e) => { e.preventDefault();if(!newProduct.name||!newProduct.price){alert("Jaza jina na bei!");return};let img=newProduct.image||"https://images.unsplash.com/photo-1549465220-1a8b9238cd48?w=500";if(newProduct.imageFile){const u=await uploadImage(newProduct.imageFile);if(u)img=u};const{error}=await supabase.from('products').insert([{name:newProduct.name,price:newProduct.price,description:newProduct.description||"",image:img,shop:loggedInShop?.name||newProduct.shop}]);if(error){alert("Imefeli: "+error.message)}else{alert("✅ Bidhaa imeongezwa!");setNewProduct({name:"",price:"",description:"",image:"",imageFile:null,shop:loggedInShop?.name||""});fetchProducts();if(loggedInShop){try{const stats=await calculateShopStats(loggedInShop.name);setShopStats(stats)}catch{}}} }
+  const handleAddProduct = async (e) => { 
+  e.preventDefault();
+  if(!newProduct.name || !newProduct.price) {
+    alert("Jaza jina na bei!");
+    return;
+  }
+  
+  let img = "https://images.unsplash.com/photo-1549465220-1a8b9238cd48?w=500";
+  
+  // Jaribu ku-upload picha kama amechagua
+  if (newProduct.imageFile) {
+    try {
+      const fn = `${Date.now()}-${newProduct.imageFile.name}`;
+      const { error: uploadError } = await supabase.storage.from('products-images').upload(fn, newProduct.imageFile);
+      if (!uploadError) {
+        const { data: urlData } = supabase.storage.from('products-images').getPublicUrl(fn);
+        if (urlData?.publicUrl) img = urlData.publicUrl;
+      } else {
+        console.log("Upload failed:", uploadError.message);
+      }
+    } catch (err) {
+      console.log("Upload exception:", err);
+    }
+  }
+  
+  const { error } = await supabase.from('products').insert([{
+    name: newProduct.name,
+    price: newProduct.price,
+    description: newProduct.description || "",
+    image: img,
+    shop: loggedInShop?.name || newProduct.shop
+  }]);
+  
+  if (error) {
+    alert("Imefeli: " + error.message);
+  } else {
+    alert("✅ Bidhaa imeongezwa!");
+    setNewProduct({ name: "", price: "", description: "", image: "", imageFile: null, shop: loggedInShop?.name || "" });
+    fetchProducts();
+    if (loggedInShop) {
+      try { 
+        const stats = await calculateShopStats(loggedInShop.name); 
+        setShopStats(stats); 
+      } catch {} 
+    }
+  }
+}
+
   const getShopLeads = (sn) => dbLeads.filter(l => l.shop_name === sn)
 
-  const compactGrid = { display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fill, minmax(180px, 1fr))", gap: isMobile ? "12px" : "16px", marginTop: "12px" }
+ const compactGrid = { display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: isMobile ? "12px" : "16px", marginTop: "12px" }
   const inputStyle = { width: "100%", padding: "14px", borderRadius: "12px", background: "#f8fafc", color: "#1e293b", border: "2px solid #e2e8f0", fontSize: "15px", outline: "none", boxSizing: "border-box" }
   const btn = (bg, c = "white") => ({ padding: "14px 20px", borderRadius: "12px", background: bg, color: c, border: "none", fontWeight: "bold", cursor: "pointer", fontSize: "15px", width: "100%" })
 
@@ -525,15 +572,37 @@ export default function App() {
                     </select>
                   </div>
                   {adminNewProduct.shop && (
-                    <form onSubmit={async (e) => { e.preventDefault(); if(!adminNewProduct.name||!adminNewProduct.price){setAdminMessage("❌ Jaza: Jina na Bei!");return}; let img="https://images.unsplash.com/photo-1549465220-1a8b9238cd48?w=500"; if(adminNewProduct.imageFile){const u=await uploadImage(adminNewProduct.imageFile);if(u)img=u}; const{error}=await supabase.from('products').insert([{name:adminNewProduct.name,price:adminNewProduct.price,description:adminNewProduct.description||"",image:img,shop:adminNewProduct.shop}]); if(error){setAdminMessage("❌ Imefeli: "+error.message)}else{setAdminMessage(`✅ Bidhaa imeongezwa kwenye ${adminNewProduct.shop}!`);setAdminNewProduct({name:"",price:"",description:"",image:"",imageFile:null,shop:adminNewProduct.shop});fetchProducts();calculateAdminStats().then(s=>setAdminStats(s))} }} style={{ display: "grid", gap: "12px" }}>
-                      <input type="text" placeholder="Jina la Bidhaa *" value={adminNewProduct.name} onChange={(e) => setAdminNewProduct({...adminNewProduct, name: e.target.value})} style={inputStyle} />
-                      <input type="text" placeholder="Bei (Tsh) *" value={adminNewProduct.price} onChange={(e) => setAdminNewProduct({...adminNewProduct, price: e.target.value})} style={inputStyle} />
-                      <textarea placeholder="Maelezo (si lazima)" value={adminNewProduct.description} onChange={(e) => setAdminNewProduct({...adminNewProduct, description: e.target.value})} style={{...inputStyle, minHeight: "70px"}} />
-                      <div><label style={{ fontSize: "12px", color: "#64748b", display: "block", marginBottom: "4px", fontWeight: "600" }}>📸 Picha ya Bidhaa</label><input type="file" accept="image/*" onChange={(e) => setAdminNewProduct({...adminNewProduct, imageFile: e.target.files[0]})} style={inputStyle} /></div>
-                      {adminNewProduct.image && <img src={adminNewProduct.image} alt="Preview" style={{ width: "100%", maxHeight: "180px", borderRadius: "12px", objectFit: "cover" }} />}
-                      <button type="submit" style={{ ...btn("linear-gradient(135deg, #6366f1, #8b5cf6, #a855f7)"), boxShadow: "0 6px 20px rgba(99,102,241,0.4)", fontWeight: "bold" }}>🚀 Weka Bidhaa kwenye {adminNewProduct.shop}</button>
-                    </form>
-                  )}
+  <form onSubmit={async (e) => { 
+    e.preventDefault(); 
+    if(!adminNewProduct.name||!adminNewProduct.price){setAdminMessage("❌ Jaza: Jina na Bei!");return};
+    
+    let img = "https://images.unsplash.com/photo-1549465220-1a8b9238cd48?w=500";
+    if (adminNewProduct.imageFile) {
+      try {
+        const fn = `${Date.now()}-${adminNewProduct.imageFile.name}`;
+        const { error: uploadError } = await supabase.storage.from('products-images').upload(fn, adminNewProduct.imageFile);
+        if (!uploadError) {
+          const { data: urlData } = supabase.storage.from('products-images').getPublicUrl(fn);
+          if (urlData?.publicUrl) img = urlData.publicUrl;
+        }
+      } catch {}
+    }
+    
+    const{error}=await supabase.from('products').insert([{name:adminNewProduct.name,price:adminNewProduct.price,description:adminNewProduct.description||"",image:img,shop:adminNewProduct.shop}]); 
+    if(error){setAdminMessage("❌ Imefeli: "+error.message)}else{setAdminMessage(`✅ Bidhaa imeongezwa kwenye ${adminNewProduct.shop}!`);setAdminNewProduct({name:"",price:"",description:"",image:"",imageFile:null,shop:adminNewProduct.shop});fetchProducts();calculateAdminStats().then(s=>setAdminStats(s))} 
+  }} style={{ display: "grid", gap: "12px" }}>
+    <input type="text" placeholder="Jina la Bidhaa *" value={adminNewProduct.name} onChange={(e) => setAdminNewProduct({...adminNewProduct, name: e.target.value})} style={inputStyle} />
+    <input type="text" placeholder="Bei (Tsh) *" value={adminNewProduct.price} onChange={(e) => setAdminNewProduct({...adminNewProduct, price: e.target.value})} style={inputStyle} />
+    <textarea placeholder="Maelezo (si lazima)" value={adminNewProduct.description} onChange={(e) => setAdminNewProduct({...adminNewProduct, description: e.target.value})} style={{...inputStyle, minHeight: "70px"}} />
+    <div>
+      <label style={{ fontSize: "12px", color: "#64748b", display: "block", marginBottom: "4px", fontWeight: "600" }}>📸 Picha ya Bidhaa</label>
+      <input type="file" accept="image/*" onChange={(e) => setAdminNewProduct({...adminNewProduct, imageFile: e.target.files[0]})} style={inputStyle} />
+      <p style={{ fontSize: "10px", color: "#94a3b8", marginTop: "4px" }}>💡 Chagua picha kutoka kwenye kifaa chako. Acha wazi kwa default.</p>
+    </div>
+    {adminNewProduct.image && <img src={adminNewProduct.image} alt="Preview" style={{ width: "100%", maxHeight: "180px", borderRadius: "12px", objectFit: "cover" }} />}
+    <button type="submit" style={{ ...btn("linear-gradient(135deg, #6366f1, #8b5cf6, #a855f7)"), boxShadow: "0 6px 20px rgba(99,102,241,0.4)", fontWeight: "bold" }}>🚀 Weka Bidhaa kwenye {adminNewProduct.shop}</button>
+  </form>
+)}
                 </div>
               )}
               {adminTab === "manageShops" && (
