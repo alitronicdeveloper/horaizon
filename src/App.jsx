@@ -169,8 +169,33 @@ export default function App() {
   const updateQuantity = (id, amt) => { setCart(prev => prev.map(i => i.id === id ? { ...i, quantity: i.quantity + amt } : i).filter(i => i.quantity > 0)) }
   const cartGroupedByShop = cart.reduce((g, i) => { const s = i.shop || "Asiyefahamika"; if (!g[s]) g[s] = []; g[s].push(i); return g }, {})
 
-  const handleWhatsAppOrder = (sn, p) => { if(!requireCustomerAuth())return; trackWhatsAppClick(sn); trackLead(p.name,sn,"WhatsApp Order",loggedInCustomer?.id); window.open(`https://wa.me/${getShopWhatsApp(sn)}?text=${encodeURIComponent(`Habari ${sn}, naomba: ${p.name} - ${p.price}\nKutoka Baizona\nMteja: ${loggedInCustomer?.name||''}`)}`,"_blank") }
-  const handleBaizonaDelivery = (sn, items) => { if(!requireCustomerAuth())return; trackWhatsAppClick(sn); items.forEach(i=>trackLead(i.name,sn,"Baizona Delivery Order",loggedInCustomer?.id)); let txt="",total=0; items.forEach((i,idx)=>{const st=i.price*i.quantity;total+=st;txt+=`${idx+1}. ${i.name} (X${i.quantity}) - Tsh ${st.toLocaleString()}\n`}); window.open(`https://wa.me/255698656019?text=${encodeURIComponent(`🚚 AGIZA KUPITIA BAIZONA DELIVERY\n\n${txt}\n💰 Jumla: Tsh ${total.toLocaleString()}\n\n📦 Huduma: Baizona itakusanyia bidhaa zako na kukuletea\n\nMteja: ${loggedInCustomer?.name||''} (${loggedInCustomer?.phone||''})`)}`,"_blank"); }
+  // WHATSAPP ORDER - ODA MOJA
+  const handleWhatsAppOrder = (sn, p) => { 
+    if(!requireCustomerAuth())return; 
+    trackWhatsAppClick(sn); 
+    trackLead(p.name,sn,"WhatsApp Order",loggedInCustomer?.id); 
+    
+    const msg = `Habari ${sn}, nimeona bidhaa yako kupitia Baizona - Chimbo la Machimbo na ningependa kuagiza:\n\nBidhaa: ${p.name}\nBei: ${p.price}\n\nNaombaje nizungumze nawe ili kukamilisha malipo na upokeaji.\n\nAsante!\n\nUjumbe huu umetumwa kupitia Baizona - Chimbo la Machimbo\n\nUngependa kupata wateja zaidi kama mimi? Jisajili duka lako bure kupitia Baizona!\nhttps://baizona.netlify.app`;
+    
+    window.open(`https://wa.me/${getShopWhatsApp(sn)}?text=${encodeURIComponent(msg)}`,"_blank"); 
+  }
+
+  // WHATSAPP ORDER - ODA NYINGI (CART)
+  const handleShopCheckoutWhatsApp = (sn, items) => { 
+    if(!requireCustomerAuth())return; 
+    trackWhatsAppClick(sn); 
+    items.forEach(i=>trackLead(i.name,sn,"Cart Checkout",loggedInCustomer?.id)); 
+    
+    let txt="",total=0; 
+    items.forEach((i,idx)=>{const st=i.price*i.quantity;total+=st;txt+=`${idx+1}. ${i.name} (X${i.quantity}) - Tsh ${st.toLocaleString()}\n`});
+    
+    const msg = `Habari ${sn}, nimeona bidhaa zako kupitia Baizona - Chimbo la Machimbo na ningependa kuagiza zifuatazo:\n\n${txt}\nJumla ya Malipo: Tsh ${total.toLocaleString()}\n\nNaombaje nizungumze nawe ili kukamilisha malipo na upokeaji.\n\nAsante!\n\nUjumbe huu umetumwa kupitia Baizona - Chimbo la Machimbo\n\nUngependa kupata wateja zaidi kama mimi? Jisajili duka lako bure kupitia Baizona!\nhttps://baizona.netlify.app`;
+    
+    window.open(`https://wa.me/${getShopWhatsApp(sn)}?text=${encodeURIComponent(msg)}`,"_blank"); 
+  }
+
+  // BAIZONA DELIVERY
+  const handleBaizonaDelivery = (sn, items) => { if(!requireCustomerAuth())return; trackWhatsAppClick(sn); items.forEach(i=>trackLead(i.name,sn,"Baizona Delivery Order",loggedInCustomer?.id)); let txt="",total=0; items.forEach((i,idx)=>{const st=i.price*i.quantity;total+=st;txt+=`${idx+1}. ${i.name} (X${i.quantity}) - Tsh ${st.toLocaleString()}\n`}); window.open(`https://wa.me/255698656019?text=${encodeURIComponent(`AGIZA KUPITIA BAIZONA DELIVERY\n\n${txt}\nJumla: Tsh ${total.toLocaleString()}\n\nHuduma: Baizona itakusanyia bidhaa zako na kukuletea\n\nMteja: ${loggedInCustomer?.name||''} (${loggedInCustomer?.phone||''})`)}`,"_blank"); }
 
   const handleShopRegister = async (e) => { e.preventDefault();setShopRegError("");setShopRegMessage("");if(!shopRegForm.name||!shopRegForm.password||!shopRegForm.category||!shopRegForm.phone){setShopRegError("❌ Jaza: Jina, Aina, Password, na Simu!");return};if(shopRegForm.password!==shopRegForm.confirmPassword){setShopRegError("❌ Password hailingani!");return};if(shopRegForm.password.length<4){setShopRegError("❌ Password: 4+ chars!");return};const{data:existing}=await supabase.from('shops').select('*').eq('name',shopRegForm.name);if(existing&&existing.length>0){setShopRegError("❌ Duka lenye jina hili lipo!");return};let logo=shopRegForm.logo||"🏪";if(shopRegForm.logoFile){const u=await uploadImage(shopRegForm.logoFile);if(u)logo=u};const{error}=await supabase.from('shops').insert([{name:shopRegForm.name,logo:logo,category:shopRegForm.category,shop_type:shopRegForm.shopType,shopType:shopRegForm.shopType,description:shopRegForm.description||"",location:shopRegForm.location||"",phone:shopRegForm.phone,email:shopRegForm.email||"",working_hours:shopRegForm.working_hours||"Jumatatu - Jumamosi: 8AM - 6PM",rating:"4.0",password:shopRegForm.password,status:'pending'}]);if(error){setShopRegError("❌ Imefeli: "+error.message)}else{setShopRegMessage("✅ Umesajiliwa! Subiri admin akuthibitishe.");setShopRegForm({name:"",logo:"",logoFile:null,category:"Electronics",shopType:"Rejareja",description:"",location:"",phone:"",email:"",working_hours:"Jumatatu - Jumamosi: 8AM - 6PM",password:"",confirmPassword:""});fetchAllShops()} }
 
@@ -454,7 +479,7 @@ export default function App() {
                   ))}
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "12px", flexWrap: "wrap", gap: "10px" }}>
                     <div><span style={{ color: "#64748b", fontSize: "12px" }}>Jumla ya {sn}: </span><strong style={{ fontSize: "16px", color: "#6366f1" }}>Tsh {total.toLocaleString()}</strong></div>
-                    <button onClick={() => handleWhatsAppOrder(sn, items[0])} style={{ ...btn("linear-gradient(135deg, #10b981, #059669)"), width: "auto", padding: "8px 16px", fontSize: "12px" }}>📱 Agiza Duka Hili</button>
+                    <button onClick={() => handleShopCheckoutWhatsApp(sn, items)} style={{ ...btn("linear-gradient(135deg, #10b981, #059669)"), width: "auto", padding: "8px 16px", fontSize: "12px" }}>📱 Agiza Duka Hili</button>
                   </div>
                 </div>
               )})}
