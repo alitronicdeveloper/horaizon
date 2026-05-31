@@ -169,44 +169,20 @@ export default function App() {
   const updateQuantity = (id, amt) => { setCart(prev => prev.map(i => i.id === id ? { ...i, quantity: i.quantity + amt } : i).filter(i => i.quantity > 0)) }
   const cartGroupedByShop = cart.reduce((g, i) => { const s = i.shop || "Asiyefahamika"; if (!g[s]) g[s] = []; g[s].push(i); return g }, {})
 
-  // WHATSAPP ORDER - ODA MOJA
-  const handleWhatsAppOrder = (sn, p) => { 
-    if(!requireCustomerAuth())return; 
-    trackWhatsAppClick(sn); 
-    trackLead(p.name,sn,"WhatsApp Order",loggedInCustomer?.id); 
-    
-    const msg = `Habari ${sn}, nimeona bidhaa yako kupitia Baizona - Chimbo la Machimbo na ningependa kuagiza:\n\nBidhaa: ${p.name}\nBei: ${p.price}\n\nNaombaje nizungumze nawe ili kukamilisha malipo na upokeaji.\n\nAsante!\n\nUjumbe huu umetumwa kupitia Baizona - Chimbo la Machimbo\n\nUngependa kupata wateja zaidi kama mimi? Jisajili duka lako bure kupitia Baizona!\nhttps://baizona.netlify.app`;
-    
-    window.open(`https://wa.me/${getShopWhatsApp(sn)}?text=${encodeURIComponent(msg)}`,"_blank"); 
-  }
-
-  // WHATSAPP ORDER - ODA NYINGI (CART)
-  const handleShopCheckoutWhatsApp = (sn, items) => { 
-    if(!requireCustomerAuth())return; 
-    trackWhatsAppClick(sn); 
-    items.forEach(i=>trackLead(i.name,sn,"Cart Checkout",loggedInCustomer?.id)); 
-    
-    let txt="",total=0; 
-    items.forEach((i,idx)=>{const st=i.price*i.quantity;total+=st;txt+=`${idx+1}. ${i.name} (X${i.quantity}) - Tsh ${st.toLocaleString()}\n`});
-    
-    const msg = `Habari ${sn}, nimeona bidhaa zako kupitia Baizona - Chimbo la Machimbo na ningependa kuagiza zifuatazo:\n\n${txt}\nJumla ya Malipo: Tsh ${total.toLocaleString()}\n\nNaombaje nizungumze nawe ili kukamilisha malipo na upokeaji.\n\nAsante!\n\nUjumbe huu umetumwa kupitia Baizona - Chimbo la Machimbo\n\nUngependa kupata wateja zaidi kama mimi? Jisajili duka lako bure kupitia Baizona!\nhttps://baizona.netlify.app`;
-    
-    window.open(`https://wa.me/${getShopWhatsApp(sn)}?text=${encodeURIComponent(msg)}`,"_blank"); 
-  }
-
-  // BAIZONA DELIVERY
+  const handleWhatsAppOrder = (sn, p) => { if(!requireCustomerAuth())return; trackWhatsAppClick(sn); trackLead(p.name,sn,"WhatsApp Order",loggedInCustomer?.id); const msg = `Habari ${sn}, nimeona bidhaa yako kupitia Baizona - Chimbo la Machimbo na ningependa kuagiza:\n\nBidhaa: ${p.name}\nBei: ${p.price}\n\nNaombaje nizungumze nawe ili kukamilisha malipo na upokeaji.\n\nAsante!\n\nUjumbe huu umetumwa kupitia Baizona - Chimbo la Machimbo\n\nUngependa kupata wateja zaidi kama mimi? Jisajili duka lako bure kupitia Baizona!\nhttps://baizona.netlify.app`; window.open(`https://wa.me/${getShopWhatsApp(sn)}?text=${encodeURIComponent(msg)}`,"_blank"); }
+  const handleShopCheckoutWhatsApp = (sn, items) => { if(!requireCustomerAuth())return; trackWhatsAppClick(sn); items.forEach(i=>trackLead(i.name,sn,"Cart Checkout",loggedInCustomer?.id)); let txt="",total=0; items.forEach((i,idx)=>{const st=i.price*i.quantity;total+=st;txt+=`${idx+1}. ${i.name} (X${i.quantity}) - Tsh ${st.toLocaleString()}\n`}); const msg = `Habari ${sn}, nimeona bidhaa zako kupitia Baizona - Chimbo la Machimbo na ningependa kuagiza zifuatazo:\n\n${txt}\nJumla ya Malipo: Tsh ${total.toLocaleString()}\n\nNaombaje nizungumze nawe ili kukamilisha malipo na upokeaji.\n\nAsante!\n\nUjumbe huu umetumwa kupitia Baizona - Chimbo la Machimbo\n\nUngependa kupata wateja zaidi kama mimi? Jisajili duka lako bure kupitia Baizona!\nhttps://baizona.netlify.app`; window.open(`https://wa.me/${getShopWhatsApp(sn)}?text=${encodeURIComponent(msg)}`,"_blank"); }
   const handleBaizonaDelivery = (sn, items) => { if(!requireCustomerAuth())return; trackWhatsAppClick(sn); items.forEach(i=>trackLead(i.name,sn,"Baizona Delivery Order",loggedInCustomer?.id)); let txt="",total=0; items.forEach((i,idx)=>{const st=i.price*i.quantity;total+=st;txt+=`${idx+1}. ${i.name} (X${i.quantity}) - Tsh ${st.toLocaleString()}\n`}); window.open(`https://wa.me/255698656019?text=${encodeURIComponent(`AGIZA KUPITIA BAIZONA DELIVERY\n\n${txt}\nJumla: Tsh ${total.toLocaleString()}\n\nHuduma: Baizona itakusanyia bidhaa zako na kukuletea\n\nMteja: ${loggedInCustomer?.name||''} (${loggedInCustomer?.phone||''})`)}`,"_blank"); }
 
-  const handleShopRegister = async (e) => { e.preventDefault();setShopRegError("");setShopRegMessage("");if(!shopRegForm.name||!shopRegForm.password||!shopRegForm.category||!shopRegForm.phone){setShopRegError("❌ Jaza: Jina, Aina, Password, na Simu!");return};if(shopRegForm.password!==shopRegForm.confirmPassword){setShopRegError("❌ Password hailingani!");return};if(shopRegForm.password.length<4){setShopRegError("❌ Password: 4+ chars!");return};const{data:existing}=await supabase.from('shops').select('*').eq('name',shopRegForm.name);if(existing&&existing.length>0){setShopRegError("❌ Duka lenye jina hili lipo!");return};let logo=shopRegForm.logo||"🏪";if(shopRegForm.logoFile){const u=await uploadImage(shopRegForm.logoFile);if(u)logo=u};const{error}=await supabase.from('shops').insert([{name:shopRegForm.name,logo:logo,category:shopRegForm.category,shop_type:shopRegForm.shopType,shopType:shopRegForm.shopType,description:shopRegForm.description||"",location:shopRegForm.location||"",phone:shopRegForm.phone,email:shopRegForm.email||"",working_hours:shopRegForm.working_hours||"Jumatatu - Jumamosi: 8AM - 6PM",rating:"4.0",password:shopRegForm.password,status:'pending'}]);if(error){setShopRegError("❌ Imefeli: "+error.message)}else{setShopRegMessage("✅ Umesajiliwa! Subiri admin akuthibitishe.");setShopRegForm({name:"",logo:"",logoFile:null,category:"Electronics",shopType:"Rejareja",description:"",location:"",phone:"",email:"",working_hours:"Jumatatu - Jumamosi: 8AM - 6PM",password:"",confirmPassword:""});fetchAllShops()} }
+  const handleShopRegister = async (e) => { e.preventDefault();setShopRegError("");setShopRegMessage("");if(!shopRegForm.name||!shopRegForm.password||!shopRegForm.category||!shopRegForm.phone){setShopRegError("❌ Jaza: Jina, Aina, Password, na Simu!");return};if(shopRegForm.password!==shopRegForm.confirmPassword){setShopRegError("❌ Password hailingani!");return};if(shopRegForm.password.length<4){setShopRegError("❌ Password: 4+ chars!");return};const{data:existing}=await supabase.from('shops').select('*').eq('name',shopRegForm.name);if(existing&&existing.length>0){setShopRegError("❌ Duka lenye jina hili lipo!");return};let logo=shopRegForm.logo||"🏪";if(shopRegForm.logoFile){const u=await uploadImage(shopRegForm.logoFile);if(u)logo=u};const{error}=await supabase.from('shops').insert([{name:shopRegForm.name,logo:logo,category:shopRegForm.category,shop_type:shopRegForm.shopType,description:shopRegForm.description||"",location:shopRegForm.location||"",phone:shopRegForm.phone,email:shopRegForm.email||"",working_hours:shopRegForm.working_hours||"Jumatatu - Jumamosi: 8AM - 6PM",rating:"4.0",password:shopRegForm.password,status:'pending'}]);if(error){setShopRegError("❌ Imefeli: "+error.message)}else{setShopRegMessage("✅ Umesajiliwa! Subiri admin akuthibitishe.");setShopRegForm({name:"",logo:"",logoFile:null,category:"Electronics",shopType:"Rejareja",description:"",location:"",phone:"",email:"",working_hours:"Jumatatu - Jumamosi: 8AM - 6PM",password:"",confirmPassword:""});fetchAllShops()} }
 
   const handleLogin = async (e) => { e.preventDefault();setLoginError("");if(!loginShopName||!loginPassword){setLoginError("Jaza jina la duka na password!");return};const shop=dbShops.find(s=>s.name.toLowerCase()===loginShopName.toLowerCase());if(!shop){setLoginError("Duka halijapatikana!");return};if(shop.status!=='approved'){setLoginError("Duka halijaidhinishwa bado!");return};if(shop.password!==loginPassword){setLoginError("Password si sahihi!");return};setIsLoggedIn(true);setIsAdmin(false);setIsCustomer(false);setLoggedInShop(shop);try{const stats=await calculateShopStats(shop.name);setShopStats(stats)}catch{};try{localStorage.setItem("baizona_auth",JSON.stringify({shopName:shop.name,password:shop.password,isAdmin:false}))}catch{};setLoginShopName("");setLoginPassword("") }
   const handleAdminLogin = (e) => { e.preventDefault();setLoginError("");if(!loginEmail||!loginAdminPassword){setLoginError("Jaza email na password!");return};if(loginEmail===ADMIN_EMAIL&&loginAdminPassword===ADMIN_PASSWORD){setIsAdmin(true);setIsLoggedIn(true);setIsCustomer(false);setLoginEmail("");setLoginAdminPassword("");navigateTo("dashboard");try{localStorage.setItem("baizona_auth",JSON.stringify({isAdmin:true}))}catch{};calculateAdminStats().then(s=>setAdminStats(s))}else setLoginError("Email au password si sahihi!") }
   const handleLogout = () => { setIsLoggedIn(false);setLoggedInShop(null);setIsAdmin(false);setIsCustomer(false);setLoggedInCustomer(null);setShopStats({totalViews:0,whatsappClicks:0,cartAdditions:0,totalProducts:0});setLoginError("");setAdminTab("overview");setPage("home");setPageHistory(["home"]);setShowProfileSettings(false);setShowCustomerAuth(false);setShowShopRegister(false);setShowCustomerProfile(false);try{localStorage.removeItem("baizona_auth")}catch{} }
 
-  const handleAddShop = async (e) => { e.preventDefault();setAdminMessage("");if(!newShopData.name||!newShopData.password||!newShopData.category){setAdminMessage("❌ Jaza: Jina, Aina, Password!");return};const{error}=await supabase.from('shops').insert([{name:newShopData.name,logo:newShopData.logo||"🏪",category:newShopData.category,shop_type:newShopData.shopType,shopType:newShopData.shopType,description:newShopData.description||"",location:newShopData.location||"",phone:newShopData.phone||"",email:newShopData.email||"",working_hours:newShopData.working_hours||"Jumatatu - Jumamosi: 8AM - 6PM",rating:newShopData.rating||"4.0",password:newShopData.password,status:newShopData.status}]);if(error){setAdminMessage("❌ Imefeli: "+error.message)}else{setAdminMessage("✅ Duka limeongezwa!");setNewShopData({name:"",logo:"",logoFile:null,category:"Electronics",shopType:"Rejareja",description:"",location:"",phone:"",email:"",working_hours:"Jumatatu - Jumamosi: 8AM - 6PM",rating:"4.0",password:"",status:"approved"});fetchAllShops();calculateAdminStats().then(s=>setAdminStats(s))} }
+  const handleAddShop = async (e) => { e.preventDefault();setAdminMessage("");if(!newShopData.name||!newShopData.password||!newShopData.category){setAdminMessage("❌ Jaza: Jina, Aina, Password!");return};let logo= newShopData.logo||"🏪";if(newShopData.logoFile){const u=await uploadImage(newShopData.logoFile);if(u)logo=u};const{error}=await supabase.from('shops').insert([{name:newShopData.name,logo:logo,category:newShopData.category,shop_type:newShopData.shopType,description:newShopData.description||"",location:newShopData.location||"",phone:newShopData.phone||"",email:newShopData.email||"",working_hours:newShopData.working_hours||"Jumatatu - Jumamosi: 8AM - 6PM",rating:newShopData.rating||"4.0",password:newShopData.password,status:newShopData.status}]);if(error){setAdminMessage("❌ Imefeli: "+error.message)}else{setAdminMessage("✅ Duka limeongezwa!");setNewShopData({name:"",logo:"",logoFile:null,category:"Electronics",shopType:"Rejareja",description:"",location:"",phone:"",email:"",working_hours:"Jumatatu - Jumamosi: 8AM - 6PM",rating:"4.0",password:"",status:"approved"});fetchAllShops();calculateAdminStats().then(s=>setAdminStats(s))} }
   const handleApproveShop = async (shop) => { const{error}=await supabase.from('shops').update({status:'approved'}).eq('id',shop.id);if(error){setAdminMessage("❌ Imefeli: "+error.message)}else{setAdminMessage(`✅ "${shop.name}" imeidhinishwa!`);fetchAllShops();calculateAdminStats().then(s=>setAdminStats(s))} }
   const handleRejectShop = async (shop) => { if(confirm(`Kataa "${shop.name}"?`)){const{error}=await supabase.from('shops').delete().eq('id',shop.id);if(error){setAdminMessage("❌ Imefeli: "+error.message)}else{setAdminMessage(`❌ "${shop.name}" imekataliwa!`);fetchAllShops();calculateAdminStats().then(s=>setAdminStats(s))}} }
-  const handleUpdateShop = async (e) => { e.preventDefault();if(!editingShop?.name){alert("Jina linahitajika!");return};const{error}=await supabase.from('shops').update({name:editingShop.name,logo:editingShop.logo,category:editingShop.category,shop_type:editingShop.shopType,shopType:editingShop.shopType,description:editingShop.description,location:editingShop.location,phone:editingShop.phone,email:editingShop.email,working_hours:editingShop.working_hours,rating:editingShop.rating,password:editingShop.password,status:editingShop.status}).eq('id',editingShop.id);if(error){alert("Imefeli: "+error.message)}else{setEditingShop(null);fetchAllShops();alert("✅ Imehifadhiwa!")} }
+  const handleUpdateShop = async (e) => { e.preventDefault();if(!editingShop?.name){alert("Jina linahitajika!");return};const{error}=await supabase.from('shops').update({name:editingShop.name,logo:editingShop.logo,category:editingShop.category,shop_type:editingShop.shopType||editingShop.shop_type,description:editingShop.description,location:editingShop.location,phone:editingShop.phone,email:editingShop.email,working_hours:editingShop.working_hours,rating:editingShop.rating,password:editingShop.password,status:editingShop.status}).eq('id',editingShop.id);if(error){alert("Imefeli: "+error.message)}else{setEditingShop(null);fetchAllShops();alert("✅ Imehifadhiwa!")} }
   const handleDeleteShop = async (id,name) => { if(confirm(`Futa "${name}" KABISA?`)){try{await supabase.from('products').delete().eq('shop',name)}catch{};try{await supabase.from('leads').delete().eq('shop_name',name)}catch{};try{await supabase.from('analytics').delete().eq('shop_name',name)}catch{};const{error}=await supabase.from('shops').delete().eq('id',id);if(error){alert("Imefeli: "+error.message)}else{fetchAllShops();fetchProducts();fetchLeads();alert("✅ Imefutwa!");calculateAdminStats().then(s=>setAdminStats(s))}} }
   const handleDeleteProduct = async (pid) => { if(confirm("Futa bidhaa hii?")){await supabase.from('products').delete().eq('id',pid);fetchProducts();calculateAdminStats().then(s=>setAdminStats(s))} }
   const handleAddProduct = async (e) => { e.preventDefault();if(!newProduct.name||!newProduct.price){alert("Jaza jina na bei!");return};let img="https://images.unsplash.com/photo-1549465220-1a8b9238cd48?w=500";if(newProduct.imageFile){const u=await uploadImage(newProduct.imageFile);if(u)img=u};const{error}=await supabase.from('products').insert([{name:newProduct.name,price:newProduct.price,description:newProduct.description||"",image:img,shop:loggedInShop?.name||newProduct.shop}]);if(error){alert("Imefeli: "+error.message)}else{alert("✅ Bidhaa imeongezwa!");setNewProduct({name:"",price:"",description:"",image:"",imageFile:null,shop:loggedInShop?.name||""});fetchProducts();if(loggedInShop){try{const stats=await calculateShopStats(loggedInShop.name);setShopStats(stats)}catch{}}} }
@@ -310,6 +286,13 @@ export default function App() {
               </select>
               <input type="text" placeholder="Simu (WhatsApp) *" value={shopRegForm.phone} onChange={(e) => setShopRegForm({...shopRegForm, phone: e.target.value})} style={{...inputStyle, borderColor: "#a7f3d0", background: "#ecfdf5"}} />
               <input type="text" placeholder="Mahali (Location)" value={shopRegForm.location} onChange={(e) => setShopRegForm({...shopRegForm, location: e.target.value})} style={{...inputStyle, borderColor: "#a7f3d0", background: "#ecfdf5"}} />
+              <div>
+                <label style={{ fontSize: "11px", color: "#10b981", display: "block", marginBottom: "4px", fontWeight: "600" }}>📸 Picha/Logo ya Duka (si lazima)</label>
+                <input type="file" accept="image/*" onChange={(e) => setShopRegForm({...shopRegForm, logoFile: e.target.files[0]})} style={{...inputStyle, borderColor: "#a7f3d0", background: "#ecfdf5"}} />
+                {shopRegForm.logo && shopRegForm.logo.startsWith("http") && (
+                  <img src={shopRegForm.logo} alt="Preview" style={{ width: "60px", height: "60px", borderRadius: "12px", marginTop: "8px", objectFit: "cover", border: "2px solid #10b981" }} />
+                )}
+              </div>
               <input type="password" placeholder="Password *" value={shopRegForm.password} onChange={(e) => setShopRegForm({...shopRegForm, password: e.target.value})} style={{...inputStyle, borderColor: "#a7f3d0", background: "#ecfdf5"}} />
               <input type="password" placeholder="Thibitisha Password *" value={shopRegForm.confirmPassword} onChange={(e) => setShopRegForm({...shopRegForm, confirmPassword: e.target.value})} style={{...inputStyle, borderColor: "#a7f3d0", background: "#ecfdf5"}} />
               <button type="submit" style={{ ...btn("linear-gradient(135deg, #10b981, #059669, #34d399)"), boxShadow: "0 6px 20px rgba(16,185,129,0.4)", fontWeight: "bold" }}>📝 Sajili Duka</button>
@@ -371,11 +354,11 @@ export default function App() {
           <div style={{ display: "flex", gap: "8px", overflowX: "auto", paddingBottom: "10px", marginBottom: "14px" }}>{categories.filter(c=>c!=="Zote").map(cat => (<button key={cat} onClick={() => setSelectedCategory(cat)} style={{ padding: "8px 16px", borderRadius: "20px", fontSize: "12px", fontWeight: "600", cursor: "pointer", border: "2px solid", borderColor: selectedCategory === cat ? "#6366f1" : "#e2e8f0", background: selectedCategory === cat ? "linear-gradient(135deg, #eef2ff, #e0e7ff)" : "#ffffff", color: selectedCategory === cat ? "#6366f1" : "#64748b", whiteSpace: "nowrap", flexShrink: 0, boxShadow: selectedCategory === cat ? "0 4px 10px rgba(99,102,241,0.2)" : "none" }}>{cat}</button>))}</div>
           <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(auto-fill, minmax(250px, 1fr))", gap: "14px" }}>{filteredShops.map((shop, i) => (
             <div key={i} onClick={() => { setSelectedShop(shop); navigateTo("shopProfile") }} style={{ background: "#ffffff", borderRadius: "16px", padding: "18px", cursor: "pointer", textAlign: "center", border: "1px solid #e2e8f0", boxShadow: "0 4px 12px rgba(0,0,0,0.04)", transition: "all 0.2s" }}>
-              {shop.logo && shop.logo.startsWith("http") ? <img src={shop.logo} style={{ width: "70px", height: "70px", borderRadius: "16px", objectFit: "cover", marginBottom: "10px", boxShadow: "0 4px 15px rgba(0,0,0,0.1)" }} alt={shop.name} /> : <div style={{ fontSize: "45px", marginBottom: "6px" }}>{shop.logo || "🏪"}</div>}
+              {shop.logo && shop.logo.startsWith("http") ? <img src={shop.logo} style={{ width: "70px", height: "70px", borderRadius: "16px", objectFit: "cover", marginBottom: "10px", boxShadow: "0 4px 15px rgba(0,0,0,0.1)" }} alt={shop.name} /> : <div style={{ width: "70px", height: "70px", borderRadius: "16px", background: "linear-gradient(135deg, #6366f1, #8b5cf6)", display: "flex", justifyContent: "center", alignItems: "center", fontSize: "35px", color: "white", boxShadow: "0 4px 15px rgba(99,102,241,0.3)", marginBottom: "10px" }}>{shop.logo || "🏪"}</div>}
               <h3 style={{ fontSize: "15px", margin: "8px 0", color: "#1e293b", fontWeight: "bold" }}>{shop.name}</h3>
               <span style={{ fontSize: "11px", background: "#eef2ff", color: "#6366f1", padding: "4px 12px", borderRadius: "10px", fontWeight: "600" }}>{shop.category}</span>
-              <div style={{ fontSize: "11px", marginTop: "8px", background: (shop.shop_type === "Jumla" || shop.shopType === "Jumla") ? "linear-gradient(135deg, #fffbeb, #fef3c7)" : "linear-gradient(135deg, #ecfdf5, #d1fae5)", padding: "4px 12px", borderRadius: "10px", display: "inline-block", fontWeight: "600", color: (shop.shop_type === "Jumla" || shop.shopType === "Jumla") ? "#f59e0b" : "#10b981" }}>
-                {(shop.shop_type === "Jumla" || shop.shopType === "Jumla") ? "🏭 Jumla" : "🏪 Rejareja"}
+              <div style={{ fontSize: "11px", marginTop: "8px", background: (shop.shop_type || shop.shopType) === "Jumla" ? "linear-gradient(135deg, #fffbeb, #fef3c7)" : "linear-gradient(135deg, #ecfdf5, #d1fae5)", padding: "4px 12px", borderRadius: "10px", display: "inline-block", fontWeight: "600", color: (shop.shop_type || shop.shopType) === "Jumla" ? "#f59e0b" : "#10b981" }}>
+                {(shop.shop_type || shop.shopType) === "Jumla" ? "🏭 Jumla" : "🏪 Rejareja"}
               </div>
               <div style={{ fontSize: "11px", color: "#64748b", marginTop: "6px" }}>⭐ {shop.rating} • 📦 {dbProducts.filter(p => p.shop === shop.name).length} bidhaa</div>
             </div>
@@ -393,7 +376,7 @@ export default function App() {
               <h1 style={{ fontSize: isMobile ? "18px" : "24px", margin: "0", color: "#1e293b", fontWeight: "bold" }}>{selectedShop.name}</h1>
               <span style={{ fontSize: "11px", background: "#eef2ff", color: "#6366f1", padding: "3px 10px", borderRadius: "8px", fontWeight: "600" }}>{selectedShop.category}</span>
               <div style={{ fontSize: "11px", color: "#64748b", marginTop: "4px" }}>
-                {(selectedShop.shop_type === "Jumla" || selectedShop.shopType === "Jumla") ? "🏭 Duka la Jumla" : "🏪 Duka la Rejareja"} • ⭐ {selectedShop.rating}
+                {(selectedShop.shop_type || selectedShop.shopType) === "Jumla" ? "🏭 Duka la Jumla" : "🏪 Duka la Rejareja"} • ⭐ {selectedShop.rating}
               </div>
             </div>
           </div>
@@ -516,28 +499,44 @@ export default function App() {
               </div>
             </div>
           ) : isAdmin ? (
+            // ============ ADMIN DASHBOARD ============
             <div style={{ maxWidth: "1100px", margin: "0 auto" }}>
+              {/* Admin Header */}
               <div style={{ background: "linear-gradient(135deg, #fef2f2, #fff7ed)", borderRadius: "16px", padding: "18px", marginBottom: "14px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px", border: "1px solid #fecaca" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
                   <div style={{ width: "50px", height: "50px", borderRadius: "14px", background: "linear-gradient(135deg, #ef4444, #dc2626)", display: "flex", justifyContent: "center", alignItems: "center", fontSize: "24px", color: "white", boxShadow: "0 4px 15px rgba(239,68,68,0.4)" }}>🛡️</div>
-                  <div><strong style={{ fontSize: "17px", color: "#dc2626" }}>Baizona Admin</strong><p style={{ margin: "2px 0 0", fontSize: "12px", color: "#64748b" }}>{adminStats.totalShops} maduka • {adminStats.pendingShops} wanasubiri • {dbProducts.length} bidhaa • {dbCustomers.length} wateja</p></div>
+                  <div>
+                    <strong style={{ fontSize: "17px", color: "#dc2626" }}>Baizona Admin</strong>
+                    <p style={{ margin: "2px 0 0", fontSize: "12px", color: "#64748b" }}>
+                      {adminStats.totalShops} maduka yaliyoidhinishwa • 
+                      <span style={{ color: "#f59e0b", fontWeight: "bold" }}> {adminStats.pendingShops} yanasubiri kuidhinishwa</span> • 
+                      {dbProducts.length} bidhaa • {dbCustomers.length} wateja
+                    </p>
+                  </div>
                 </div>
                 <div style={{ display: "flex", gap: "10px" }}>
                   <button onClick={() => navigateTo("home")} style={{ padding: "8px 16px", borderRadius: "10px", background: "#f1f5f9", color: "#1e293b", border: "none", cursor: "pointer", fontSize: "12px", fontWeight: "bold" }}>🏪 Tazama Site</button>
                   <button onClick={handleLogout} style={{ padding: "8px 16px", borderRadius: "10px", background: "#fef2f2", color: "#ef4444", border: "none", cursor: "pointer", fontSize: "12px", fontWeight: "bold" }}>🚪 Ondoka</button>
                 </div>
               </div>
+
+              {/* Admin Tabs */}
               <div style={{ display: "flex", gap: "8px", marginBottom: "16px", flexWrap: "wrap" }}>
                 {[{ id: "overview", icon: "📈", label: "Muhtasari" },{ id: "addProduct", icon: "➕", label: "Weka Bidhaa" },{ id: "manageShops", icon: "🏪", label: "Maduka" },{ id: "allProducts", icon: "📦", label: "Bidhaa" },{ id: "leads", icon: "📨", label: "Maagizo" },{ id: "customers", icon: "👥", label: "Wateja" }].map(tab => (
                   <button key={tab.id} onClick={() => { setAdminTab(tab.id); setAdminMessage(""); setEditingShop(null) }} style={{ padding: "10px 18px", borderRadius: "12px", fontSize: "12px", fontWeight: "600", cursor: "pointer", border: "2px solid", borderColor: adminTab === tab.id ? "#6366f1" : "#e2e8f0", background: adminTab === tab.id ? "linear-gradient(135deg, #eef2ff, #e0e7ff)" : "#ffffff", color: adminTab === tab.id ? "#6366f1" : "#64748b", whiteSpace: "nowrap", boxShadow: adminTab === tab.id ? "0 4px 12px rgba(99,102,241,0.2)" : "none" }}>{tab.icon} {tab.label}</button>
                 ))}
               </div>
+
               {adminMessage && <div style={{ background: adminMessage.startsWith("✅")?"#ecfdf5":"#fef2f2", color: adminMessage.startsWith("✅")?"#10b981":"#ef4444", padding: "14px", borderRadius: "12px", marginBottom: "14px", fontSize: "14px", textAlign: "center", border: `2px solid ${adminMessage.startsWith("✅")?"#a7f3d0":"#fecaca"}` }}>{adminMessage}</div>}
+
+              {/* Overview */}
               {adminTab === "overview" && (
                 <div style={{ display: "grid", gridTemplateColumns: isMobile?"repeat(2,1fr)":"repeat(4,1fr)", gap: "12px" }}>
                   {[{ icon: "🏪", label: "Maduka", sub: "Yaliyoidhinishwa", v: adminStats.totalShops, c: "#6366f1", bg: "#eef2ff" },{ icon: "⏳", label: "Wanasubiri", sub: "Kuidhinishwa", v: adminStats.pendingShops, c: "#f59e0b", bg: "#fffbeb" },{ icon: "📦", label: "Bidhaa", sub: "Zote", v: adminStats.totalProducts, c: "#10b981", bg: "#ecfdf5" },{ icon: "👥", label: "Wateja", sub: "Waliojisajili", v: adminStats.totalCustomers, c: "#8b5cf6", bg: "#f3e8ff" }].map((s,i)=>(<div key={i} style={{ background: s.bg, padding: "16px", borderRadius: "14px", textAlign: "center", border: "1px solid #e2e8f0" }}><div style={{ fontSize: "28px", marginBottom: "4px" }}>{s.icon}</div><div style={{ fontSize: "22px", fontWeight: "bold", color: s.c }}>{s.v}</div><div style={{ fontSize: "12px", color: "#64748b", fontWeight: "600" }}>{s.label}</div><div style={{ fontSize: "10px", color: "#94a3b8" }}>{s.sub}</div></div>))}
                 </div>
               )}
+
+              {/* Add Product */}
               {adminTab === "addProduct" && (
                 <div style={{ background: "#ffffff", padding: "18px", borderRadius: "16px", border: "2px solid #6366f1", boxShadow: "0 4px 20px rgba(99,102,241,0.1)" }}>
                   <h3 style={{ fontSize: "18px", marginBottom: "16px", color: "#6366f1", fontWeight: "bold" }}>➕ Weka Bidhaa Dukani</h3>
@@ -560,6 +559,8 @@ export default function App() {
                   )}
                 </div>
               )}
+
+              {/* ============ MANAGE SHOPS (WITH PENDING APPROVAL) ============ */}
               {adminTab === "manageShops" && (
                 <div>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px", flexWrap: "wrap", gap: "8px" }}>
@@ -569,6 +570,38 @@ export default function App() {
                       <button onClick={() => { setNewShopData({ name: "", logo: "", logoFile: null, category: "Electronics", shopType: "Rejareja", description: "", location: "", phone: "", email: "", working_hours: "Jumatatu - Jumamosi: 8AM - 6PM", rating: "4.0", password: "", status: "approved" }); setAdminTab("addShopDirect") }} style={{ ...btn("linear-gradient(135deg, #6366f1, #8b5cf6)"), width: "auto", padding: "10px 16px", fontSize: "12px" }}>⚡ Weka Haraka</button>
                     </div>
                   </div>
+
+                  {/* ============ PENDING APPROVAL SECTION ============ */}
+                  {dbShops.filter(s => s.status === 'pending').length > 0 && (
+                    <div style={{ marginBottom: "16px", background: "#fffbeb", padding: "16px", borderRadius: "14px", border: "2px solid #f59e0b" }}>
+                      <h4 style={{ fontSize: "15px", color: "#f59e0b", marginBottom: "6px", fontWeight: "bold", display: "flex", alignItems: "center", gap: "8px" }}>
+                        ⏳ YANASUBIRI KUIDHINISHWA ({dbShops.filter(s=>s.status==='pending').length})
+                      </h4>
+                      <p style={{ fontSize: "11px", color: "#92400e", marginBottom: "12px" }}>
+                        Maduka haya yamejisajili na yanasubiri wewe kuyakubali kabla ya kuonekana kwa wateja.
+                      </p>
+                      {dbShops.filter(s=>s.status==='pending').map((shop,i)=>(
+                        <div key={i} style={{ background: "#ffffff", padding: "14px", borderRadius: "12px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px", marginBottom: "8px", border: "1px solid #fde68a" }}>
+                          <div style={{ flex: 1 }}>
+                            <strong style={{ color: "#1e293b", fontSize: "14px" }}>{shop.logo||"🏪"} {shop.name}</strong>
+                            <div style={{ fontSize: "11px", color: "#64748b", marginTop: "4px" }}>{shop.category} | 📞 {shop.phone} | 📍 {shop.location}</div>
+                            <div style={{ fontSize: "10px", color: "#94a3b8", marginTop: "2px" }}>🔑 Pass: {shop.password} | 📧 {shop.email} | 🕐 {shop.working_hours}</div>
+                            {shop.description && <div style={{ fontSize: "10px", color: "#64748b", marginTop: "4px", fontStyle: "italic" }}>"{shop.description}"</div>}
+                          </div>
+                          <div style={{ display: "flex", gap: "8px", flexShrink: 0 }}>
+                            <button onClick={()=>handleApproveShop(shop)} style={{ background: "linear-gradient(135deg, #10b981, #059669)", color: "white", border: "none", padding: "10px 18px", borderRadius: "8px", cursor: "pointer", fontWeight: "bold", fontSize: "12px", whiteSpace: "nowrap" }}>
+                              ✅ Kubali
+                            </button>
+                            <button onClick={()=>handleRejectShop(shop)} style={{ background: "linear-gradient(135deg, #ef4444, #dc2626)", color: "white", border: "none", padding: "10px 18px", borderRadius: "8px", cursor: "pointer", fontWeight: "bold", fontSize: "12px", whiteSpace: "nowrap" }}>
+                              ❌ Kataa
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Edit Shop Modal */}
                   {editingShop && (
                     <div style={{ background: "#fffbeb", padding: "16px", borderRadius: "14px", marginBottom: "14px", border: "2px solid #fde68a" }}>
                       <h4 style={{ fontSize: "15px", color: "#f59e0b", marginBottom: "12px", fontWeight: "bold" }}>✏️ Hariri: {editingShop.name}</h4>
@@ -588,13 +621,15 @@ export default function App() {
                       </form>
                     </div>
                   )}
+
+                  {/* All Shops List */}
                   <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                     {dbShops.map((shop, i) => (
                       <div key={i} style={{ background: shop.status==='approved'?"#ecfdf5":"#fffbeb", padding: "14px", borderRadius: "12px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px", border: `1px solid ${shop.status==='approved'?'#a7f3d0':'#fde68a'}` }}>
                         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
                           {shop.logo && shop.logo.startsWith("http") ? <img src={shop.logo} style={{ width: "45px", height: "45px", borderRadius: "10px", objectFit: "cover" }} alt="" /> : <div style={{ width: "45px", height: "45px", borderRadius: "10px", background: "linear-gradient(135deg, #6366f1, #8b5cf6)", display: "flex", justifyContent: "center", alignItems: "center", fontSize: "20px", color: "white" }}>{shop.logo || "🏪"}</div>}
                           <div>
-                            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}><strong style={{ color: "#1e293b", fontSize: "13px" }}>{shop.name}</strong><span style={{ fontSize: "10px", padding: "3px 10px", borderRadius: "8px", background: shop.status==='approved'?"#a7f3d0":"#fde68a", color: shop.status==='approved'?"#065f46":"#92400e", fontWeight: "600" }}>{shop.status==='approved'?"Imeidhinishwa":"Inasubiri"}</span><span style={{ fontSize: "10px", padding: "3px 10px", borderRadius: "8px", background: (shop.shopType||shop.shop_type)==="Jumla"?"#fffbeb":"#ecfdf5", color: (shop.shopType||shop.shop_type)==="Jumla"?"#f59e0b":"#10b981", fontWeight: "600" }}>{(shop.shopType||shop.shop_type)==="Jumla"?"🏭 Jumla":"🏪 Rejareja"}</span></div>
+                            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}><strong style={{ color: "#1e293b", fontSize: "13px" }}>{shop.name}</strong><span style={{ fontSize: "10px", padding: "3px 10px", borderRadius: "8px", background: shop.status==='approved'?"#a7f3d0":"#fde68a", color: shop.status==='approved'?"#065f46":"#92400e", fontWeight: "600" }}>{shop.status==='approved'?"Imeidhinishwa":"Inasubiri"}</span></div>
                             <div style={{ fontSize: "11px", color: "#64748b" }}>{shop.category} | 📦 {dbProducts.filter(p=>p.shop===shop.name).length} bidhaa | 📞 {shop.phone}</div>
                             <div style={{ fontSize: "10px", color: "#94a3b8" }}>🔑: {shop.password} | 📍 {shop.location} | 📧 {shop.email}</div>
                           </div>
@@ -608,6 +643,8 @@ export default function App() {
                   </div>
                 </div>
               )}
+
+              {/* All Products, Leads, Customers tabs */}
               {adminTab === "allProducts" && (
                 <div><h3 style={{ fontSize: "16px", color: "#1e293b", marginBottom: "12px", fontWeight: "bold" }}>📦 Bidhaa Zote ({dbProducts.length})</h3>
                   <div style={{ overflowX: "auto" }}><table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}><thead><tr style={{ borderBottom: "2px solid #e2e8f0", color: "#64748b" }}><th style={{ padding: "10px", textAlign: "left" }}>Bidhaa</th><th style={{ padding: "10px" }}>Duka</th><th style={{ padding: "10px" }}>Bei</th><th style={{ padding: "10px" }}>Futa</th></tr></thead><tbody>{dbProducts.map(p=>(<tr key={p.id} style={{ borderBottom: "1px solid #f1f5f9" }}><td style={{ padding: "10px", display: "flex", alignItems: "center", gap: "10px" }}><img src={p.image} style={{ width: "35px", height: "35px", borderRadius: "6px", objectFit: "cover" }} alt="" />{p.name}</td><td style={{ padding: "10px", color: "#6366f1" }}>{p.shop}</td><td style={{ padding: "10px", color: "#10b981", fontWeight: "bold" }}>{p.price}</td><td style={{ padding: "10px", textAlign: "center" }}><button onClick={()=>handleDeleteProduct(p.id)} style={{ background: "linear-gradient(135deg, #ef4444, #dc2626)", color: "white", border: "none", padding: "5px 12px", borderRadius: "6px", cursor: "pointer", fontSize: "11px" }}>🗑️</button></td></tr>))}</tbody></table></div></div>
@@ -622,6 +659,7 @@ export default function App() {
               )}
             </div>
           ) : (
+            // SHOP OWNER DASHBOARD
             <>
               <div style={{ background: "linear-gradient(135deg, #eef2ff, #f8fafc)", borderRadius: "14px", padding: "16px", marginBottom: "12px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px", border: "1px solid #e2e8f0" }}>
                 <strong style={{ fontSize: "16px", color: "#1e293b" }}>{loggedInShop?.logo&&loggedInShop.logo.startsWith("http")?<img src={loggedInShop.logo} style={{ width: "24px", height: "24px", borderRadius: "6px", verticalAlign: "middle", marginRight: "8px", objectFit: "cover" }} alt="" />:loggedInShop?.logo} {loggedInShop?.name}</strong>
