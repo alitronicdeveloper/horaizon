@@ -1,5 +1,9 @@
 import { useState, useEffect } from "react"
 import { createClient } from '@supabase/supabase-js'
+import { showToast } from './notifications'
+import { playNotificationSound } from './sound'
+import { requestNotificationPermission, subscribeToPush, sendTestNotification, sendCartNotification, sendOrderNotification } from './pushNotifications'
+import { Reviews } from './components/Reviews.jsx'
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ""
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ""
@@ -20,6 +24,16 @@ const useIsMobile = () => {
     window.addEventListener('resize', handleResize)
     return () => window.removeEventListener('resize', handleResize)
   }, [])
+  useEffect(() => {
+  const initNotifications = async () => {
+    const hasPermission = await requestNotificationPermission()
+    if (hasPermission) {
+      await subscribeToPush()
+      console.log('Push notifications ziko tayari!')
+    }
+  }
+  initNotifications()
+}, [])
   return isMobile
 }
 
@@ -36,6 +50,7 @@ export default function App() {
   const [dbLeads, setDbLeads] = useState([])
   const [dbCustomers, setDbCustomers] = useState([])
   const isMobile = useIsMobile()
+  const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
     const handlePopState = () => {
@@ -133,7 +148,17 @@ export default function App() {
   const fetchLeads = async () => { try { const { data } = await supabase.from('leads').select('*').order('created_at', { ascending: false }); if (data) setDbLeads(data) } catch {} }
   const fetchCustomers = async () => { try { const { data } = await supabase.from('customers').select('*').order('id', { ascending: false }); if (data) setDbCustomers(data) } catch {} }
 
-  useEffect(() => { fetchProducts(); fetchAllShops(); fetchLeads(); fetchCustomers() }, [])
+  useEffect(() => { 
+  const loadData = async () => {
+    setIsLoading(true)
+    await fetchProducts()
+    await fetchAllShops()
+    await fetchLeads()
+    await fetchCustomers()
+    setIsLoading(false)
+  }
+  loadData()
+}, [])
   useEffect(() => { try { localStorage.setItem("baizona_cart", JSON.stringify(cart)) } catch {} }, [cart])
 
   useEffect(() => { try { const saved = localStorage.getItem("baizona_auth"); if (saved) { const auth = JSON.parse(saved); if (auth.isCustomer && auth.customerId && dbCustomers.length > 0) { const c = dbCustomers.find(x => x.id === auth.customerId); if (c) { setIsCustomer(true); setIsLoggedIn(true); setLoggedInCustomer(c) } } if (!auth.isAdmin && !auth.isCustomer && auth.shopName && auth.password && dbShops.length > 0) { const shop = dbShops.find(s => s.name === auth.shopName && s.password === auth.password); if (shop && shop.status === 'approved') { setIsLoggedIn(true); setLoggedInShop(shop); calculateShopStats(shop.name).then(s => setShopStats(s)) } } } } catch {} }, [dbShops, dbCustomers])
@@ -164,9 +189,23 @@ export default function App() {
   const handleCustomerProfileUpdate = async (e) => { e.preventDefault();setCustomerProfileMsg("");if(customerProfileForm.currentPassword!==loggedInCustomer?.password){setCustomerProfileMsg("❌ Password ya sasa si sahihi!");return};if(customerProfileForm.newPassword&&customerProfileForm.newPassword!==customerProfileForm.confirmNewPassword){setCustomerProfileMsg("❌ Password mpya hailingani!");return};const u={name:customerProfileForm.name,phone:customerProfileForm.phone};if(customerProfileForm.newPassword)u.password=customerProfileForm.newPassword;const{error}=await supabase.from('customers').update(u).eq('id',loggedInCustomer.id);if(error){setCustomerProfileMsg("❌ Imefeli: "+error.message)}else{setCustomerProfileMsg("✅ Taarifa zimebadilishwa!");const{data}=await supabase.from('customers').select('*').eq('id',loggedInCustomer.id).single();if(data){setLoggedInCustomer(data);try{localStorage.setItem("baizona_auth",JSON.stringify({isCustomer:true,customerId:data.id}))}catch{}}} }
   const getCustomerLeads = () => dbLeads.filter(l => l.customer_id === loggedInCustomer?.id)
 
-  const addToCart = () => { if(!selectedProduct||!requireCustomerAuth())return; const s=selectedShop?.name||selectedProduct.shop||"Baizona"; const np=typeof selectedProduct.price==='number'?selectedProduct.price:Number(String(selectedProduct.price).replace(/[^0-9]/g,"")); setCart(p=>{const ex=p.find(i=>i.id===selectedProduct.id);return ex?p.map(i=>i.id===selectedProduct.id?{...i,quantity:i.quantity+1}:i):[...p,{...selectedProduct,price:np,quantity:1,shop:s}]}); trackCartAddition(selectedProduct);alert("Imeongezwa kwenye Kikapu!") }
-  const addToCartDirect = (p,sn) => { if(!requireCustomerAuth())return; const np=typeof p.price==='number'?p.price:Number(String(p.price).replace(/[^0-9]/g,"")); setCart(pr=>{const ex=pr.find(i=>i.id===p.id);return ex?pr.map(i=>i.id===p.id?{...i,quantity:i.quantity+1}:i):[...pr,{...p,price:np,quantity:1,shop:sn}]}); trackCartAddition(p);alert("Imeongezwa kwenye Kikapu!") }
-  const updateQuantity = (id, amt) => { setCart(prev => prev.map(i => i.id === id ? { ...i, quantity: i.quantity + amt } : i).filter(i => i.quantity > 0)) }
+  const addToCart = () => { if(!selectedProduct||!requireCustomerAuth())return; const s=selectedShop?.name||selectedProduct.shop||"Baizona"; const np=typeof selectedProduct.price==='number'?selectedProduct.price:Number(String(selectedProduct.price).replace(/[^0-9]/g,"")); setCart(p=>{const ex=p.find(i=>i.id===selectedProduct.id);return ex?p.map(i=>i.id===selectedProduct.id?{...i,quantity:i.quantity+1}:i):[...p,{...selectedProduct,price:np,quantity:1,shop:s}]}); trackCartAddition(selectedProduct); showToast(`🛒 ${selectedProduct.name} imeongezwa kwenye kikapu!`, 'cart'); playNotificationSound(); sendCartNotification(selectedProduct.name); }
+ const addToCartDirect = (p,sn) => { 
+  if(!requireCustomerAuth())return; 
+  const np=typeof p.price==='number'?p.price:Number(String(p.price).replace(/[^0-9]/g,"")); 
+  setCart(pr=>{const ex=pr.find(i=>i.id===p.id);return ex?pr.map(i=>i.id===p.id?{...i,quantity:i.quantity+1}:i):[...pr,{...p,price:np,quantity:1,shop:sn}]}); 
+  trackCartAddition(p); 
+  showToast(`🛒 ${p.name} imeongezwa kwenye kikapu!`, 'cart'); 
+  playNotificationSound();
+  
+  if (Notification.permission === 'granted') {
+    new Notification('Baizona', {
+      body: `${p.name} imeongezwa kwenye kikapu chako!`,
+    });
+  }
+}
+
+  function updateQuantity(id, amt) { setCart(prev => prev.map(i => i.id === id ? { ...i, quantity: i.quantity + amt } : i).filter(i => i.quantity > 0)) }
   const cartGroupedByShop = cart.reduce((g, i) => { const s = i.shop || "Asiyefahamika"; if (!g[s]) g[s] = []; g[s].push(i); return g }, {})
 
   const handleWhatsAppOrder = (sn, p) => { if(!requireCustomerAuth())return; trackWhatsAppClick(sn); trackLead(p.name,sn,"WhatsApp Order",loggedInCustomer?.id); const msg = `Habari ${sn}, nimeona bidhaa yako kupitia Baizona - Chimbo la Machimbo na ningependa kuagiza:\n\nBidhaa: ${p.name}\nBei: ${p.price}\n\nNaombaje nizungumze nawe ili kukamilisha malipo na upokeaji.\n\nAsante!\n\nUjumbe huu umetumwa kupitia Baizona - Chimbo la Machimbo\n\nUngependa kupata wateja zaidi kama mimi? Jisajili duka lako bure kupitia Baizona!\nhttps://baizona.netlify.app`; window.open(`https://wa.me/${getShopWhatsApp(sn)}?text=${encodeURIComponent(msg)}`,"_blank"); }
@@ -204,6 +243,18 @@ export default function App() {
             <div style={{ fontSize: "10px", color: "#8b5cf6", marginTop: "1px", fontStyle: "italic", fontWeight: "500" }}>Chimbo la Machimbo</div>
           </div>
         </div>
+        <button onClick={async () => {
+  const granted = await requestNotificationPermission()
+  if (granted) {
+    await subscribeToPush()
+    sendTestNotification()
+    showToast('✅ Umeanza kupokea Taarifa!', 'success')
+  } else {
+    showToast('❌ Tafadhali ruhusu Taarifa kwenye browser yako', 'error')
+  }
+}} style={{ background: '#eef2ff', border: 'none', padding: '8px 16px', borderRadius: '20px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold', color: '#6366f1' }}>
+  🔔 Washa Taarifa
+</button>
         {!isMobile && (
           <div style={{ display: "flex", gap: "24px", alignItems: "center", fontWeight: "600", fontSize: "14px" }}>
             <span onClick={() => navigateTo("home")} style={{ cursor: "pointer", color: page === "home" ? "#6366f1" : "#64748b", padding: "8px 12px", borderRadius: "10px", background: page === "home" ? "#eef2ff" : "transparent", transition: "all 0.2s" }}>🏠 Nyumbani</span>
@@ -215,7 +266,7 @@ export default function App() {
           </div>
         )}
       </div>
-
+      
       {/* CUSTOMER AUTH MODAL */}
       {showCustomerAuth && (
         <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 2000, padding: "20px" }}>
@@ -433,6 +484,14 @@ export default function App() {
               </div>
             </div>
           </div>
+{selectedProduct && (
+  <Reviews 
+    productId={selectedProduct.id}
+    isLoggedIn={isCustomer}
+    customerId={loggedInCustomer?.id}
+    customerName={loggedInCustomer?.name}
+  />
+)}
         </div>
       )}
 
