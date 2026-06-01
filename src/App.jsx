@@ -2,8 +2,11 @@ import { useState, useEffect } from "react"
 import { createClient } from '@supabase/supabase-js'
 import { showToast } from './notifications'
 import { playNotificationSound } from './sound'
-import { requestNotificationPermission, subscribeToPush, sendTestNotification, sendCartNotification, sendOrderNotification } from './pushNotifications'
+import { requestNotificationPermission, subscribeToPush, sendTestNotification, sendCartNotification } from './pushNotifications'
 import { Reviews } from './components/Reviews.jsx'
+import { ShareButton } from './components/ShareButton'
+
+
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ""
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ""
@@ -51,6 +54,7 @@ export default function App() {
   const [dbCustomers, setDbCustomers] = useState([])
   const isMobile = useIsMobile()
   const [isLoading, setIsLoading] = useState(true)
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0)
 
   useEffect(() => {
     const handlePopState = () => {
@@ -189,7 +193,17 @@ export default function App() {
   const handleCustomerProfileUpdate = async (e) => { e.preventDefault();setCustomerProfileMsg("");if(customerProfileForm.currentPassword!==loggedInCustomer?.password){setCustomerProfileMsg("❌ Password ya sasa si sahihi!");return};if(customerProfileForm.newPassword&&customerProfileForm.newPassword!==customerProfileForm.confirmNewPassword){setCustomerProfileMsg("❌ Password mpya hailingani!");return};const u={name:customerProfileForm.name,phone:customerProfileForm.phone};if(customerProfileForm.newPassword)u.password=customerProfileForm.newPassword;const{error}=await supabase.from('customers').update(u).eq('id',loggedInCustomer.id);if(error){setCustomerProfileMsg("❌ Imefeli: "+error.message)}else{setCustomerProfileMsg("✅ Taarifa zimebadilishwa!");const{data}=await supabase.from('customers').select('*').eq('id',loggedInCustomer.id).single();if(data){setLoggedInCustomer(data);try{localStorage.setItem("baizona_auth",JSON.stringify({isCustomer:true,customerId:data.id}))}catch{}}} }
   const getCustomerLeads = () => dbLeads.filter(l => l.customer_id === loggedInCustomer?.id)
 
-  const addToCart = () => { if(!selectedProduct||!requireCustomerAuth())return; const s=selectedShop?.name||selectedProduct.shop||"Baizona"; const np=typeof selectedProduct.price==='number'?selectedProduct.price:Number(String(selectedProduct.price).replace(/[^0-9]/g,"")); setCart(p=>{const ex=p.find(i=>i.id===selectedProduct.id);return ex?p.map(i=>i.id===selectedProduct.id?{...i,quantity:i.quantity+1}:i):[...p,{...selectedProduct,price:np,quantity:1,shop:s}]}); trackCartAddition(selectedProduct); showToast(`🛒 ${selectedProduct.name} imeongezwa kwenye kikapu!`, 'cart'); playNotificationSound(); sendCartNotification(selectedProduct.name); }
+const addToCart = () => { 
+  if(!selectedProduct||!requireCustomerAuth())return; 
+  const s=selectedShop?.name||selectedProduct.shop||"Baizona"; 
+  const np=typeof selectedProduct.price==='number'?selectedProduct.price:Number(String(selectedProduct.price).replace(/[^0-9]/g,"")); 
+  setCart(p=>{const ex=p.find(i=>i.id===selectedProduct.id);return ex?p.map(i=>i.id===selectedProduct.id?{...i,quantity:i.quantity+1}:i):[...p,{...selectedProduct,price:np,quantity:1,shop:s}]}); 
+  trackCartAddition(selectedProduct); 
+  showToast(`🛒 ${selectedProduct.name} imeongezwa kwenye kikapu!`, 'cart'); 
+  playNotificationSound();
+  sendCartNotification(selectedProduct.name);
+}
+
  const addToCartDirect = (p,sn) => { 
   if(!requireCustomerAuth())return; 
   const np=typeof p.price==='number'?p.price:Number(String(p.price).replace(/[^0-9]/g,"")); 
@@ -197,7 +211,7 @@ export default function App() {
   trackCartAddition(p); 
   showToast(`🛒 ${p.name} imeongezwa kwenye kikapu!`, 'cart'); 
   playNotificationSound();
-  
+  sendCartNotification(p.name);
   if (Notification.permission === 'granted') {
     new Notification('Baizona', {
       body: `${p.name} imeongezwa kwenye kikapu chako!`,
@@ -224,7 +238,73 @@ export default function App() {
   const handleUpdateShop = async (e) => { e.preventDefault();if(!editingShop?.name){alert("Jina linahitajika!");return};const{error}=await supabase.from('shops').update({name:editingShop.name,logo:editingShop.logo,category:editingShop.category,shop_type:editingShop.shopType||editingShop.shop_type,description:editingShop.description,location:editingShop.location,phone:editingShop.phone,email:editingShop.email,working_hours:editingShop.working_hours,rating:editingShop.rating,password:editingShop.password,status:editingShop.status}).eq('id',editingShop.id);if(error){alert("Imefeli: "+error.message)}else{setEditingShop(null);fetchAllShops();alert("✅ Imehifadhiwa!")} }
   const handleDeleteShop = async (id,name) => { if(confirm(`Futa "${name}" KABISA?`)){try{await supabase.from('products').delete().eq('shop',name)}catch{};try{await supabase.from('leads').delete().eq('shop_name',name)}catch{};try{await supabase.from('analytics').delete().eq('shop_name',name)}catch{};const{error}=await supabase.from('shops').delete().eq('id',id);if(error){alert("Imefeli: "+error.message)}else{fetchAllShops();fetchProducts();fetchLeads();alert("✅ Imefutwa!");calculateAdminStats().then(s=>setAdminStats(s))}} }
   const handleDeleteProduct = async (pid) => { if(confirm("Futa bidhaa hii?")){await supabase.from('products').delete().eq('id',pid);fetchProducts();calculateAdminStats().then(s=>setAdminStats(s))} }
-  const handleAddProduct = async (e) => { e.preventDefault();if(!newProduct.name||!newProduct.price){alert("Jaza jina na bei!");return};let img="https://images.unsplash.com/photo-1549465220-1a8b9238cd48?w=500";if(newProduct.imageFile){const u=await uploadImage(newProduct.imageFile);if(u)img=u};const{error}=await supabase.from('products').insert([{name:newProduct.name,price:newProduct.price,description:newProduct.description||"",image:img,shop:loggedInShop?.name||newProduct.shop}]);if(error){alert("Imefeli: "+error.message)}else{alert("✅ Bidhaa imeongezwa!");setNewProduct({name:"",price:"",description:"",image:"",imageFile:null,shop:loggedInShop?.name||""});fetchProducts();if(loggedInShop){try{const stats=await calculateShopStats(loggedInShop.name);setShopStats(stats)}catch{}}} }
+  // STATE MPYA KWA MULTIPLE IMAGES
+const [productImages, setProductImages] = useState([])
+const [productImagesPreview, setProductImagesPreview] = useState([])
+
+// FUNCTION YA KUPOKEA PICHA NZINGI
+const handleImageUpload = (e) => {
+  const files = Array.from(e.target.files)
+  const newImages = [...productImages, ...files]
+  setProductImages(newImages)
+  
+  // Preview
+  const previews = newImages.map(file => URL.createObjectURL(file))
+  setProductImagesPreview(previews)
+}
+
+const removeImage = (index) => {
+  const newImages = productImages.filter((_, i) => i !== index)
+  const newPreviews = productImagesPreview.filter((_, i) => i !== index)
+  setProductImages(newImages)
+  setProductImagesPreview(newPreviews)
+}
+
+// BADILISHA handleAddProduct
+const handleAddProduct = async (e) => { 
+  e.preventDefault()
+  if(!newProduct.name||!newProduct.price){
+    showToast("Jaza jina na bei!", "error")
+    return
+  }
+  
+  // Upload images zote
+  const uploadedImages = []
+  for (const file of productImages) {
+    const fileName = `${Date.now()}-${file.name}`
+    const { error } = await supabase.storage.from('products-images').upload(fileName, file)
+    if (!error) {
+      const { data: u } = supabase.storage.from('products-images').getPublicUrl(fileName)
+      uploadedImages.push(u.publicUrl)
+    }
+  }
+  
+  // Ikiwa hakuna picha zilizopakiwa, tumia default
+  const finalImages = uploadedImages.length > 0 ? uploadedImages : ['https://images.unsplash.com/photo-1549465220-1a8b9238cd48?w=500']
+  
+  const { error } = await supabase.from('products').insert([{
+    name: newProduct.name,
+    price: newProduct.price,
+    description: newProduct.description || "",
+    images: finalImages,
+    shop: loggedInShop?.name || newProduct.shop
+  }])
+  
+  if(error){
+    showToast("Imefeli: "+error.message, "error")
+  } else {
+    showToast(`✅ ${newProduct.name} imeongezwa!`, "success")
+    setNewProduct({name:"",price:"",description:"",image:"",imageFile:null,shop:loggedInShop?.name||""})
+    setProductImages([])
+    setProductImagesPreview([])
+    fetchProducts()
+    if(loggedInShop){
+      const stats = await calculateShopStats(loggedInShop.name)
+      setShopStats(stats)
+    }
+  }
+}
+
   const getShopLeads = (sn) => dbLeads.filter(l => l.shop_name === sn)
 
   const compactGrid = { display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(auto-fill, minmax(220px, 1fr))", gap: isMobile ? "10px" : "16px", marginTop: "12px" }
@@ -339,7 +419,7 @@ export default function App() {
               <input type="text" placeholder="Mahali (Location)" value={shopRegForm.location} onChange={(e) => setShopRegForm({...shopRegForm, location: e.target.value})} style={{...inputStyle, borderColor: "#a7f3d0", background: "#ecfdf5"}} />
               <div>
                 <label style={{ fontSize: "11px", color: "#10b981", display: "block", marginBottom: "4px", fontWeight: "600" }}>📸 Picha/Logo ya Duka (si lazima)</label>
-                <input type="file" accept="image/*" onChange={(e) => setShopRegForm({...shopRegForm, logoFile: e.target.files[0]})} style={{...inputStyle, borderColor: "#a7f3d0", background: "#ecfdf5"}} />
+              <input type="file" accept="image/*" multiple onChange={handleImageUpload} />
                 {shopRegForm.logo && shopRegForm.logo.startsWith("http") && (
                   <img src={shopRegForm.logo} alt="Preview" style={{ width: "60px", height: "60px", borderRadius: "12px", marginTop: "8px", objectFit: "cover", border: "2px solid #10b981" }} />
                 )}
@@ -377,19 +457,41 @@ export default function App() {
           )}
           <div style={{ padding: isMobile ? "12px 14px" : "14px 22px" }}>
             <h2 style={{ fontSize: isMobile ? "15px" : "18px", marginBottom: "10px", color: "#1e293b", fontWeight: "bold" }}>{searchQuery || selectedCategory !== "Zote" ? `Matokeo (${filteredProducts.length})` : "✨ Bidhaa Maarufu"}</h2>
-            <div style={compactGrid}>{filteredProducts.map(product => (
-              <div key={product.id} style={{ background: "#ffffff", borderRadius: "16px", overflow: "hidden", border: "1px solid #e2e8f0", boxShadow: "0 4px 16px rgba(0,0,0,0.05)", transition: "all 0.2s" }}>
-                <div style={{ height: isMobile ? "200px" : "200px", overflow: "hidden", cursor: "pointer" }} onClick={() => { setSelectedProduct(product); trackProductView(product); navigateTo("productDetails") }}>
-                  <img src={product.image} alt={product.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                </div>
-                <div style={{ padding: "14px" }}>
-                  <span style={{ fontSize: "11px", background: "#eef2ff", color: "#6366f1", padding: "4px 10px", borderRadius: "8px", fontWeight: "600" }}>🏪 {product.shop}</span>
-                  <h3 style={{ margin: "10px 0 6px", fontSize: "15px", fontWeight: "bold", color: "#1e293b" }}>{product.name.length > 25 ? product.name.substring(0,25)+'...' : product.name}</h3>
-                  <p style={{ color: "#6366f1", fontWeight: "bold", fontSize: "18px", margin: "4px 0" }}>{product.price}</p>
-                  <button onClick={(e) => { e.stopPropagation(); setSelectedProduct(product); trackProductView(product); navigateTo("productDetails") }} style={{ ...btn("linear-gradient(135deg, #6366f1, #8b5cf6, #a855f7)"), padding: "12px", fontSize: "13px", marginTop: "10px", boxShadow: "0 4px 15px rgba(99,102,241,0.3)" }}>Angalia 👀</button>
-                </div>
-              </div>
-            ))}</div>
+            <div style={compactGrid}>
+  {filteredProducts.map(product => (
+    <div key={product.id} style={{ background: "#ffffff", borderRadius: "16px", overflow: "hidden", border: "1px solid #e2e8f0", boxShadow: "0 4px 16px rgba(0,0,0,0.05)", transition: "all 0.2s" }}>
+      
+      {/* ← SEHEMU ILIYOBADILISHWA */}
+      <div style={{ height: isMobile ? "200px" : "200px", overflow: "hidden", cursor: "pointer", position: "relative" }} onClick={() => { setSelectedProduct(product); trackProductView(product); navigateTo("productDetails") }}>
+        
+        {/* Picha kuu (picha ya kwanza ikiwa kuna nyingi) */}
+        <img 
+  src={product.images?.[0] || product.image} 
+  alt={product.name} 
+  style={{ width: "100%", height: "100%", objectFit: "contain", background: "#f8fafc" }} 
+/>
+        
+        {/* Badge ya idadi ya picha (ikiwa ni zaidi ya moja) */}
+        {product.images && product.images.length > 1 && (
+          <div style={{ position: "absolute", bottom: "8px", right: "8px", background: "rgba(0,0,0,0.6)", color: "white", padding: "2px 8px", borderRadius: "12px", fontSize: "11px", fontWeight: "bold" }}>
+            📷 {product.images.length}
+          </div>
+        )}
+      </div>
+      
+      {/* SEHEMU ZA MAELEZO ZINABAKI SAWA... */}
+   <div style={{ padding: "14px" }}>
+  <span style={{ fontSize: "11px", background: "#eef2ff", color: "#6366f1", padding: "4px 10px", borderRadius: "8px", fontWeight: "600" }}>🏪 {product.shop}</span>
+  <h3 style={{ margin: "10px 0 6px", fontSize: "15px", fontWeight: "bold", color: "#1e293b" }}>{product.name.length > 25 ? product.name.substring(0,25)+'...' : product.name}</h3>
+  <p style={{ color: "#6366f1", fontWeight: "bold", fontSize: "18px", margin: "4px 0" }}>{typeof product.price === 'number' ? `Tsh ${product.price.toLocaleString()}` : product.price}</p>
+  
+  {/* ← HAPA NDIO UNAPASWA KUPATA BUTTON YA "Angalia" */}
+  <button onClick={(e) => { e.stopPropagation(); setSelectedProduct(product); trackProductView(product); navigateTo("productDetails") }} style={{ ...btn("linear-gradient(135deg, #6366f1, #8b5cf6, #a855f7)"), padding: "12px", fontSize: "13px", marginTop: "10px", boxShadow: "0 4px 15px rgba(99,102,241,0.3)" }}>Angalia 👀</button>
+</div>
+      
+    </div>
+  ))}
+</div>
           </div>
         </>
       )}
@@ -469,31 +571,65 @@ export default function App() {
 
       {/* PRODUCT DETAILS */}
       {page === "productDetails" && selectedProduct && (
-        <div style={{ padding: isMobile ? "14px" : "22px", maxWidth: "800px", margin: "0 auto", background: "#ffffff" }}>
-          <button onClick={() => goBack()} style={{ ...btn("#f1f5f9", "#1e293b"), width: "auto", marginBottom: "14px", padding: "10px 18px", fontSize: "13px", borderRadius: "10px", border: "1px solid #e2e8f0" }}>⬅ Rudi</button>
-          <div style={{ background: "#ffffff", borderRadius: "18px", overflow: "hidden", border: "1px solid #e2e8f0", boxShadow: "0 4px 20px rgba(0,0,0,0.06)" }}>
-            <img src={selectedProduct.image} alt={selectedProduct.name} style={{ width: "100%", height: isMobile ? "250px" : "400px", objectFit: "cover" }} />
-            <div style={{ padding: isMobile ? "16px" : "24px" }}>
-              <span style={{ color: "#6366f1", fontSize: "12px", background: "#eef2ff", padding: "6px 12px", borderRadius: "8px", fontWeight: "600" }}>🏪 {selectedShop?.name || selectedProduct.shop}</span>
-              <h1 style={{ fontSize: isMobile ? "22px" : "28px", margin: "12px 0 8px", color: "#1e293b", fontWeight: "bold" }}>{selectedProduct.name}</h1>
-              <h2 style={{ color: "#6366f1", fontSize: isMobile ? "24px" : "30px", margin: "6px 0", fontWeight: "bold" }}>{selectedProduct.price}</h2>
-              <p style={{ color: "#475569", fontSize: "14px", marginTop: "12px", lineHeight: "1.7" }}>{selectedProduct.description}</p>
-              <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", gap: "12px", marginTop: "18px" }}>
-                <button onClick={addToCart} style={{ ...btn("#ffffff", "#6366f1"), border: "2px solid #6366f1", fontWeight: "bold" }}>🛒 Weka Kikapuni</button>
-                <button onClick={() => handleWhatsAppOrder(selectedShop?.name || selectedProduct.shop, selectedProduct)} style={{ ...btn("linear-gradient(135deg, #10b981, #059669, #34d399)"), boxShadow: "0 6px 20px rgba(16,185,129,0.4)" }}>📱 Agiza Kupitia WhatsApp</button>
-              </div>
-            </div>
+  <div style={{ padding: isMobile ? "14px" : "22px", maxWidth: "800px", margin: "0 auto", background: "#ffffff" }}>
+    
+    {/* Ongeza state hii kwenye App component (juu ya return) */}
+    {/* const [selectedImageIndex, setSelectedImageIndex] = useState(0) */}
+    
+    <button onClick={() => goBack()} style={{ ...btn("#f1f5f9", "#1e293b"), width: "auto", marginBottom: "14px", padding: "10px 18px", fontSize: "13px", borderRadius: "10px", border: "1px solid #e2e8f0" }}>⬅ Rudi</button>
+    
+    <div style={{ background: "#ffffff", borderRadius: "18px", overflow: "hidden", border: "1px solid #e2e8f0", boxShadow: "0 4px 20px rgba(0,0,0,0.06)" }}>
+      
+      {/* ← SEHEMU ILIYOBADILISHWA (GALLERY) */}
+      <div style={{ marginBottom: "16px" }}>
+        {/* Picha kuu */}
+        <img src={selectedProduct.image} alt={selectedProduct.name} style={{ width: "100%", height: isMobile ? "300px" : "450px", objectFit: "contain", background: "#f8fafc" }} />
+        
+        {/* Thumbnails za picha zingine (kama zipo) */}
+        {selectedProduct.images && selectedProduct.images.length > 1 && (
+          <div style={{ display: "flex", gap: "8px", marginTop: "10px", padding: "0 10px", overflowX: "auto", paddingBottom: "5px" }}>
+            {selectedProduct.images.map((img, idx) => (
+              <img 
+                key={idx}
+                src={img} 
+                alt={`${selectedProduct.name} - ${idx + 1}`}
+                onClick={() => setSelectedImageIndex(idx)}
+                style={{
+                  width: "60px",
+                  height: "60px",
+                  objectFit: "cover",
+                  borderRadius: "8px",
+                  cursor: "pointer",
+                  border: selectedImageIndex === idx ? "2px solid #6366f1" : "1px solid #e2e8f0"
+                }}
+              />
+            ))}
           </div>
-{selectedProduct && (
-  <Reviews 
-    productId={selectedProduct.id}
-    isLoggedIn={isCustomer}
-    customerId={loggedInCustomer?.id}
-    customerName={loggedInCustomer?.name}
+        )}
+      </div>
+      
+      {/* SEHEMU ZA MAELEZO ZINABAKI SAWA */}
+      <div style={{ padding: isMobile ? "16px" : "24px" }}>
+        <span style={{ color: "#6366f1", fontSize: "12px", background: "#eef2ff", padding: "6px 12px", borderRadius: "8px", fontWeight: "600" }}>🏪 {selectedShop?.name || selectedProduct.shop}</span>
+        <h1 style={{ fontSize: isMobile ? "22px" : "28px", margin: "12px 0 8px", color: "#1e293b", fontWeight: "bold" }}>{selectedProduct.name}</h1>
+        <h2 style={{ color: "#6366f1", fontSize: isMobile ? "24px" : "30px", margin: "6px 0", fontWeight: "bold" }}>{typeof selectedProduct.price === 'number' ? `Tsh ${selectedProduct.price.toLocaleString()}` : selectedProduct.price}</h2>
+        <p style={{ color: "#475569", fontSize: "14px", marginTop: "12px", lineHeight: "1.7" }}>{selectedProduct.description}</p>
+       <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", gap: "12px", marginTop: "18px", flexWrap: "wrap" }}>
+  <button onClick={addToCart} style={{ ...btn("#ffffff", "#6366f1"), border: "2px solid #6366f1", fontWeight: "bold" }}>🛒 Weka Kikapuni</button>
+  <button onClick={() => handleWhatsAppOrder(selectedShop?.name || selectedProduct.shop, selectedProduct)} style={{ ...btn("linear-gradient(135deg, #10b981, #059669, #34d399)"), boxShadow: "0 6px 20px rgba(16,185,129,0.4)" }}>📱 Agiza Kupitia WhatsApp</button>
+  
+  <ShareButton 
+    product={selectedProduct}
+    productName={selectedProduct.name}
+    productPrice={typeof selectedProduct.price === 'number' ? selectedProduct.price : 0}
+    productImage={selectedProduct.images?.[0] || selectedProduct.image}
   />
+</div>
+      </div>
+      
+    </div>
+  </div>
 )}
-        </div>
-      )}
 
       {/* CART PAGE */}
       {page === "cart" && (
@@ -726,13 +862,55 @@ export default function App() {
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: "10px", marginBottom: "12px" }}>{[{ l: "Waliotazama", v: shopStats.totalViews },{ l: "WhatsApp", v: shopStats.whatsappClicks },{ l: "Kikapuni", v: shopStats.cartAdditions },{ l: "Bidhaa", v: shopStats.totalProducts }].map((s,i)=>(<div key={i} style={{ background: "#ffffff", padding: "14px", borderRadius: "12px", textAlign: "center", fontSize: "12px", border: "1px solid #e2e8f0" }}><strong style={{ fontSize: "16px", color: "#6366f1" }}>{s.v}</strong><br/><span style={{ color: "#64748b" }}>{s.l}</span></div>))}</div>
               <form onSubmit={handleAddProduct} style={{ background: "#f8fafc", padding: "14px", borderRadius: "14px", marginBottom: "12px", border: "1px solid #e2e8f0" }}>
-                <h4 style={{ fontSize: "14px", marginBottom: "10px", color: "#1e293b", fontWeight: "bold" }}>➕ Weka Bidhaa Mpya</h4>
-                <input type="text" placeholder="Jina la Bidhaa" value={newProduct.name} onChange={(e)=>setNewProduct({...newProduct,name:e.target.value})} style={{...inputStyle, marginBottom: "8px"}} />
-                <input type="text" placeholder="Bei (Tsh)" value={newProduct.price} onChange={(e)=>setNewProduct({...newProduct,price:e.target.value})} style={{...inputStyle, marginBottom: "8px"}} />
-                <input type="file" accept="image/*" onChange={(e)=>setNewProduct({...newProduct,imageFile:e.target.files[0]})} style={{...inputStyle, marginBottom: "10px"}} />
-                <p style={{ fontSize: "10px", color: "#94a3b8", marginBottom: "8px" }}>📸 Chagua picha au acha wazi kwa default</p>
-                <button type="submit" style={{...btn("linear-gradient(135deg, #10b981, #059669, #34d399)"), fontWeight: "bold"}}>➕ Weka Bidhaa</button>
-              </form>
+  <h4 style={{ fontSize: "14px", marginBottom: "10px", color: "#1e293b", fontWeight: "bold" }}>➕ Weka Bidhaa Mpya</h4>
+  
+  <input type="text" placeholder="Jina la Bidhaa" value={newProduct.name} onChange={(e)=>setNewProduct({...newProduct,name:e.target.value})} style={{...inputStyle, marginBottom: "8px"}} />
+  <input type="text" placeholder="Bei (Tsh)" value={newProduct.price} onChange={(e)=>setNewProduct({...newProduct,price:e.target.value})} style={{...inputStyle, marginBottom: "8px"}} />
+  
+  {/* Multiple Images Upload */}
+  <div style={{ marginBottom: "10px" }}>
+    <label style={{ fontSize: "12px", color: "#64748b", display: "block", marginBottom: "4px", fontWeight: "600" }}>📸 Picha za Bidhaa (Unaweza kuchagua nyingi)</label>
+    <input 
+      type="file" 
+      accept="image/*" 
+      multiple 
+      onChange={handleImageUpload} 
+      style={{...inputStyle, marginBottom: "8px"}} 
+    />
+    
+    {/* Preview za picha zilizopakiwa */}
+    {productImagesPreview.length > 0 && (
+      <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginTop: "8px" }}>
+        {productImagesPreview.map((preview, idx) => (
+          <div key={idx} style={{ position: "relative" }}>
+            <img src={preview} alt="Preview" style={{ width: "60px", height: "60px", borderRadius: "8px", objectFit: "cover" }} />
+            <button 
+              type="button"
+              onClick={() => removeImage(idx)}
+              style={{
+                position: "absolute",
+                top: "-5px",
+                right: "-5px",
+                background: "#ef4444",
+                color: "white",
+                border: "none",
+                borderRadius: "50%",
+                width: "20px",
+                height: "20px",
+                cursor: "pointer",
+                fontSize: "12px"
+              }}
+            >
+              ✕
+            </button>
+          </div>
+        ))}
+      </div>
+    )}
+  </div>
+  
+  <button type="submit" style={{...btn("linear-gradient(135deg, #10b981, #059669, #34d399)"), fontWeight: "bold"}}>➕ Weka Bidhaa</button>
+</form>
             </>
           )}
         </div>

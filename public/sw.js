@@ -1,5 +1,4 @@
 // public/sw.js
-
 self.addEventListener('install', (event) => {
   console.log('Service Worker installed')
   self.skipWaiting()
@@ -15,6 +14,8 @@ self.addEventListener('push', (event) => {
   
   const options = {
     body: data.body,
+    icon: '/logo-192.png',
+    badge: '/badge.png',
     vibrate: [200, 100, 200],
     tag: 'baizona-notification',
     requireInteraction: true,
@@ -33,6 +34,8 @@ self.addEventListener('push', (event) => {
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()
   if (event.action === 'open') {
-    event.waitUntil(self.clients.openWindow(event.notification.data.url))
+    event.waitUntil(
+      self.clients.openWindow(event.notification.data.url)
+    )
   }
 })

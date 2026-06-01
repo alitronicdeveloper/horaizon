@@ -1,9 +1,6 @@
 // src/pushNotifications.js
+const VAPID_PUBLIC_KEY = 'BPX6RyIoHc4w5-95eQefUJbWemp9TIADW5ZoNvkv55VX4TxA47fr_1eB1Ddym7qsvxJGkKV5DUFZva1n1AV1MBQ'
 
-// VAPID Public Key (hii ni test key - inafanya kazi)
-const VAPID_PUBLIC_KEY = 'BCkxsxQzK8qQk5xQzK8qQk5xQzK8qQk5xQzK8qQk5xQzK8qQk5xQzK8qQk5xQzK8qQk5xQzK8'
-
-// Omba ruhusa ya kutuma arifa
 export const requestNotificationPermission = async () => {
   if (!('Notification' in window)) {
     console.log('Browser haina support ya notifications')
@@ -23,7 +20,6 @@ export const requestNotificationPermission = async () => {
   return false
 }
 
-// Jiandikisha kwa push notifications
 export const subscribeToPush = async () => {
   if (!('serviceWorker' in navigator)) {
     console.log('Service Worker haipo')
@@ -55,29 +51,20 @@ export const subscribeToPush = async () => {
   }
 }
 
-// Tuma arifa ya mtihani
 export const sendTestNotification = () => {
   if (Notification.permission === 'granted') {
     new Notification('🔔 Baizona', {
       body: '✅ Notifications zinafanya kazi! Utapokea arifa za bidhaa zako.',
+      icon: '/logo-192.png'
     })
   }
 }
 
-// Tuma arifa ya bidhaa kwenye kikapu
 export const sendCartNotification = (productName) => {
   if (Notification.permission === 'granted') {
     new Notification('🛒 Baizona', {
       body: `${productName} imeongezwa kwenye kikapu chako!`,
-    })
-  }
-}
-
-// Tuma arifa ya agizo
-export const sendOrderNotification = (productName, shopName) => {
-  if (Notification.permission === 'granted') {
-    new Notification('📦 Agizo Jipya!', {
-      body: `Umeweka agizo la ${productName} kutoka ${shopName}`,
+      icon: '/logo-192.png'
     })
   }
 }
